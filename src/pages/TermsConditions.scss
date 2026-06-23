@@ -1,0 +1,282 @@
+// ============================================
+// TermsConditions.scss - Minimal Lime/Gray Theme
+// ============================================
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+$lime: #84cc16;
+$lime-light: #ecfccb;
+$lime-dark: #65a30d;
+$lime-hover: #a3e635;
+$gray-50: #fafafa;
+$gray-100: #f4f4f5;
+$gray-200: #e4e4e7;
+$gray-300: #d4d4d8;
+$gray-400: #a1a1aa;
+$gray-500: #71717a;
+$gray-600: #52525b;
+$gray-700: #3f3f46;
+$gray-800: #27272a;
+$gray-900: #18181b;
+$white: #ffffff;
+$black: #09090b;
+$red-500: #ef4444;
+$red-100: #fee2e2;
+$font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+
+@mixin transition($property: all, $duration: 0.2s) {
+  transition: $property $duration ease;
+}
+
+.terms {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: $gray-50;
+  padding: 24px;
+  font-family: $font;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+
+  &__card {
+    width: 100%;
+    max-width: 680px;
+    background: $white;
+    border-radius: 20px;
+    padding: 40px 36px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.04);
+    margin: 20px 0;
+  }
+
+  // ============================================
+  // Header
+  // ============================================
+  &__header {
+    text-align: center;
+    margin-bottom: 36px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid $gray-200;
+  }
+
+  &__logo {
+    margin-bottom: 16px;
+  }
+
+  &__logo-img {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  &__brand {
+    font-size: 28px;
+    font-weight: 700;
+    color: $gray-900;
+    margin: 0 0 4px 0;
+    letter-spacing: -0.5px;
+  }
+
+  &__tagline {
+    font-size: 14px;
+    color: $gray-500;
+    margin: 0;
+    font-weight: 400;
+  }
+
+  // ============================================
+  // Content
+  // ============================================
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+
+  &__section {
+    h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: $gray-900;
+      margin: 0 0 8px 0;
+    }
+
+    p {
+      font-size: 13px;
+      color: $gray-600;
+      line-height: 1.7;
+      margin: 0 0 8px 0;
+      font-weight: 400;
+
+      strong {
+        color: $gray-900;
+        font-weight: 600;
+      }
+    }
+
+    ul {
+      margin: 6px 0;
+      padding-left: 20px;
+
+      li {
+        font-size: 13px;
+        color: $gray-600;
+        line-height: 1.7;
+        margin-bottom: 5px;
+        font-weight: 400;
+
+        &::marker {
+          color: $lime;
+        }
+
+        strong {
+          color: $gray-900;
+          font-weight: 600;
+        }
+      }
+    }
+  }
+
+  // ============================================
+  // Agreement Section
+  // ============================================
+  &__agreement {
+    border-top: 1px solid $gray-200;
+    padding-top: 28px;
+  }
+
+  // ============================================
+  // Custom Checkbox
+  // ============================================
+  &__checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    margin-bottom: 14px;
+    font-size: 13px;
+    color: $gray-600;
+    font-weight: 400;
+    line-height: 1.5;
+
+    input[type="checkbox"] {
+      display: none;
+    }
+
+    strong {
+      color: $gray-900;
+      font-weight: 600;
+    }
+  }
+
+  &__checkbox-mark {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    border: 2px solid $gray-300;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+    @include transition;
+
+    &::after {
+      content: '';
+      width: 10px;
+      height: 6px;
+      border-left: 2px solid $white;
+      border-bottom: 2px solid $white;
+      transform: rotate(-45deg) translateY(-1px);
+      opacity: 0;
+      @include transition;
+    }
+  }
+
+  &__checkbox-text {
+    flex: 1;
+  }
+
+  input[type="checkbox"]:checked + .terms__checkbox-mark {
+    background: $lime;
+    border-color: $lime;
+
+    &::after {
+      opacity: 1;
+    }
+  }
+
+  // ============================================
+  // Buttons
+  // ============================================
+  &__buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  &__btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: $font;
+    cursor: pointer;
+    border: none;
+    @include transition;
+
+    &--agree {
+      background: $lime;
+      color: $black;
+
+      &:hover:not(:disabled) {
+        background: $lime-hover;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba($lime, 0.3);
+      }
+
+      &:active:not(:disabled) {
+        transform: translateY(0);
+      }
+
+      &:disabled {
+        background: $gray-200;
+        color: $gray-400;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+    }
+
+    &--decline {
+      background: transparent;
+      color: $gray-400;
+      border: 1.5px solid $gray-200;
+      font-weight: 500;
+      font-size: 13px;
+
+      &:hover {
+        background: $red-100;
+        color: $red-500;
+        border-color: $red-500;
+      }
+    }
+  }
+
+  // ============================================
+  // Date
+  // ============================================
+  &__date {
+    text-align: center;
+    font-size: 11px;
+    color: $gray-400;
+    margin: 16px 0 0 0;
+    font-weight: 400;
+  }
+}

@@ -1,0 +1,302 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+// ============================================
+// Variables
+// ============================================
+$lime: #84cc16;
+$lime-hover: #a3e635;
+$lime-dark: #65a30d;
+$gray-50: #fafafa;
+$gray-100: #f4f4f5;
+$gray-200: #e4e4e7;
+$gray-300: #d4d4d8;
+$gray-400: #a1a1aa;
+$gray-500: #71717a;
+$gray-600: #52525b;
+$gray-900: #18181b;
+$white: #ffffff;
+$black: #09090b;
+$font: 'Poppins', sans-serif;
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+// ============================================
+// Admin Container
+// ============================================
+.admin {
+  min-height: 100vh;
+  background: $white;
+  font-family: $font;
+  color: $gray-900;
+  padding: 24px 28px;
+  max-width: 1000px;
+  margin: 0 auto;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+
+  // Top line
+  &__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid $gray-200;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  &__top-left { display: flex; align-items: center; gap: 8px; }
+  &__logo { font-weight: 700; font-size: 15px; letter-spacing: -0.3px; }
+  &__sep { color: $gray-400; }
+  &__label { color: $gray-500; font-size: 12px; }
+  &__top-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  &__stat-inline {
+    font-size: 12px;
+    color: $gray-500;
+    b { color: $gray-900; font-weight: 600; margin-right: 2px; }
+  }
+  &__btn {
+    background: none;
+    border: none;
+    color: $gray-500;
+    font-size: 12px;
+    font-family: $font;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    &:hover { color: $gray-900; background: $gray-100; }
+  }
+
+  // ============================================
+  // Announcement Section
+  // ============================================
+  &__announce {
+    margin-bottom: 20px;
+  }
+
+  &__announce-btn {
+    background: none;
+    border: 1px dashed $gray-300;
+    color: $gray-500;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: $font;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    &:hover { border-color: $lime; color: $lime-dark; background: #f7fee7; }
+  }
+
+  &__announce-active {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+    padding: 10px 14px;
+    border-radius: 6px;
+    gap: 12px;
+  }
+
+  &__announce-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  &__announce-label {
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  &__announce-text {
+    font-size: 13px;
+    color: #92400e;
+    font-style: italic;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__announce-time {
+    font-size: 10px;
+    color: #a16207;
+    white-space: nowrap;
+  }
+
+  &__announce-clear {
+    background: none;
+    border: none;
+    color: #92400e;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    &:hover { background: #fde68a; }
+  }
+
+  &__announce-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  &__announce-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid $gray-200;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: $font;
+    outline: none;
+    &:focus { border-color: $lime; }
+  }
+
+  &__announce-send {
+    padding: 8px 16px;
+    background: $lime;
+    color: $black;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: $font;
+    cursor: pointer;
+    &:hover { background: $lime-hover; }
+  }
+
+  &__announce-cancel {
+    padding: 8px 12px;
+    background: none;
+    border: 1px solid $gray-200;
+    color: $gray-500;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: $font;
+    cursor: pointer;
+    &:hover { background: $gray-100; }
+  }
+
+  // Bar
+  &__bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  &__search {
+    flex: 1;
+    min-width: 200px;
+    padding: 8px 0;
+    border: none;
+    border-bottom: 1px solid $gray-200;
+    font-size: 13px;
+    font-family: $font;
+    background: transparent;
+    outline: none;
+    color: $gray-900;
+    &::placeholder { color: $gray-400; }
+    &:focus { border-bottom-color: $lime; }
+  }
+  &__tabs { display: flex; gap: 2px; }
+  &__tab {
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: $font;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: $gray-500;
+    &:hover { background: $gray-100; }
+    &--on { background: $gray-900; color: $white; font-weight: 600; }
+  }
+  &__tab-count { opacity: 0.6; font-weight: 400; margin-left: 3px; }
+
+  // Table
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 10px;
+      font-weight: 600;
+      color: $gray-400;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      border-bottom: 1px solid $gray-200;
+    }
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid $gray-100;
+      font-size: 13px;
+    }
+    tbody tr:hover td { background: $gray-50; }
+  }
+  &__user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    &-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+  }
+  &__muted { color: $gray-400; }
+  &__mono { font-family: 'SF Mono', 'Cascadia Code', monospace; font-size: 12px; color: $gray-600; }
+  &__empty { text-align: center; padding: 40px; color: $gray-400; font-size: 13px; }
+
+  // Section
+  &__section-title {
+    margin-top: 32px;
+    margin-bottom: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: $gray-400;
+  }
+  // Add these inside .admin block
+
+&__announce-select {
+  padding: 8px 12px;
+  border: 1px solid $gray-200;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: $font;
+  background: $white;
+  color: $gray-900;
+  cursor: pointer;
+  outline: none;
+  
+  &:focus { border-color: $lime; }
+}
+
+&__announce-timer {
+  font-size: 11px;
+  color: #059669;
+  font-weight: 600;
+  font-family: 'SF Mono', monospace;
+  white-space: nowrap;
+}
+
+&__announce-badge {
+  font-size: 10px;
+  background: #d1fae5;
+  color: #059669;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+}
