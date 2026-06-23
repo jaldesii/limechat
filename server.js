@@ -63,7 +63,6 @@ function leaveGroup(socketId) {
             const user = group.users[index];
             group.users.splice(index, 1);
             
-            // ✅ UPDATE MEMBER LIST
             const memberList = group.users.map(u => ({ socketId: u.socketId, name: u.name, online: true, location: '' }));
             io.to(group.id).emit('groupUserList', { roomId: group.id, members: memberList });
             io.to(group.id).emit('groupUserLeft', { roomId: group.id, socketId });
@@ -137,15 +136,15 @@ io.on("connection", (socket) => {
         existing.socketId = socket.id; existing.status = 'connected'; existing.lastActive = new Date().toISOString();
     } else {
         uniqueVisitors.add(clientId);
-      allUsers.push({ 
-    socketId: socket.id, clientId,
-    name: 'Anonymous', location: 'Unknown',
-    status: 'connected',
-    joinedAt: new Date().toISOString(),
-    lastActive: new Date().toISOString(),
-    roomId: null,
-    userAgent: socket.handshake.headers['user-agent'] || '' // ✅ Add this
-});
+        allUsers.push({ 
+            socketId: socket.id, clientId,
+            name: 'Anonymous', location: 'Unknown',
+            status: 'connected',
+            joinedAt: new Date().toISOString(),
+            lastActive: new Date().toISOString(),
+            roomId: null,
+            userAgent: socket.handshake.headers['user-agent'] || ''
+        });
     }
     broadcastAdminUpdate();
 
@@ -195,7 +194,6 @@ io.on("connection", (socket) => {
         socket.emit('groupList', { groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length, maxUsers: g.maxUsers })) });
     });
 
-    // ✅ FIXED: Create group - emit member list immediately
     socket.on('createGroup', (data) => {
         const groupId = 'group-' + Date.now();
         const group = { id: groupId, name: `${data.user.name}'s Group`, users: [{ socketId: socket.id, name: data.user.name }], maxUsers: 10 };
@@ -203,7 +201,6 @@ io.on("connection", (socket) => {
         socket.join(groupId);
         updateUser(socket.id, { status: 'connected', roomId: groupId });
         
-        // ✅ SEND MEMBER LIST BEFORE groupJoined
         const memberList = getGroupMemberList(group);
         socket.emit('groupUserList', { roomId: groupId, members: memberList });
         socket.emit('groupJoined', { roomId: groupId, userCount: 1 });
@@ -212,7 +209,6 @@ io.on("connection", (socket) => {
         broadcastAdminUpdate();
     });
 
-    // ✅ FIXED: Join group - emit member list BEFORE groupJoined
     socket.on('joinGroup', (data) => {
         const group = groups.find(g => g.id === data.groupId);
         if (group && group.users.length < group.maxUsers) {
@@ -221,12 +217,10 @@ io.on("connection", (socket) => {
             socket.join(data.groupId);
             updateUser(socket.id, { status: 'connected', roomId: data.groupId });
             
-            // ✅ SEND MEMBER LIST BEFORE groupJoined (prevents race condition)
             const memberList = getGroupMemberList(group);
             socket.emit('groupUserList', { roomId: data.groupId, members: memberList });
             socket.emit('groupJoined', { roomId: data.groupId, userCount: group.users.length });
             
-            // Broadcast to other members
             socket.to(data.groupId).emit('groupUserJoined', { roomId: data.groupId, user: { socketId: socket.id, name: data.user.name, online: true, location: '' } });
             socket.to(data.groupId).emit('groupUserList', { roomId: data.groupId, members: memberList });
             socket.to(data.groupId).emit('receiveMessage', { type: 'system', message: `${data.user.name} joined the group`, senderName: 'System', timestamp: new Date().toISOString() });
@@ -236,12 +230,22 @@ io.on("connection", (socket) => {
         }
     });
 
-    // ✅ NEW: Get group members on demand
     socket.on('getGroupMembers', (data) => {
         const group = groups.find(g => g.id === data.roomId);
         if (group) {
             const memberList = getGroupMemberList(group);
             socket.emit('groupUserList', { roomId: data.roomId, members: memberList });
+        }
+    });
+
+    // ✅ EDIT GROUP NAME
+    socket.on("editGroupName", (data) => {
+        const group = groups.find(g => g.id === data.roomId);
+        if (group) {
+            group.name = data.name;
+            io.to(data.roomId).emit("groupNameUpdated", { roomId: data.roomId, name: data.name });
+            io.emit('groupList', { groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length, maxUsers: g.maxUsers })) });
+            broadcastAdminUpdate();
         }
     });
 
@@ -257,6 +261,16 @@ io.on("connection", (socket) => {
     socket.on("sendMessage", (data) => { socket.to(data.roomId).emit("receiveMessage", data); updateUser(socket.id, { lastActive: new Date().toISOString() }); });
     socket.on("typing", (roomId) => { socket.to(roomId).emit("partnerTyping"); });
     socket.on("messageReaction", (data) => { socket.to(data.roomId).emit("messageReaction", data); });
+
+    // ✅ EDIT MESSAGE
+    socket.on("editMessage", (data) => {
+        socket.to(data.roomId).emit("messageEdited", data);
+    });
+
+    // ✅ DELETE MESSAGE
+    socket.on("deleteMessage", (data) => {
+        socket.to(data.roomId).emit("messageDeleted", data);
+    });
 
     // ✅ FIXED: leaveRoom - group chat doesn't end
     socket.on("leaveRoom", (data) => {
@@ -318,4 +332,6 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`👥 Group chat enabled`);
+    console.log(`✏️ Message edit/delete enabled`);
+    console.log(`📝 Group name edit enabled`);
 });

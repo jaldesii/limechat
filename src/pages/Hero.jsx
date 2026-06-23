@@ -24,6 +24,14 @@ function MembersIcon2() { return (<svg width="24" height="24" viewBox="0 0 24 24
 function SunIcon() { return (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>);}
 function MoonIcon() { return (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>);}
 
+// ✅ New icons for new features
+function EmojiFeatureIcon() { return (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" /></svg>);}
+function EditFeatureIcon() { return (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>);}
+function DeleteFeatureIcon() { return (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>);}
+function LongPressIcon() { return (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>);}
+function SkeletonIcon() { return (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="4" rx="2" /><rect x="2" y="10" width="20" height="4" rx="2" /><rect x="2" y="17" width="14" height="4" rx="2" /></svg>);}
+function RenameIcon() { return (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>);}
+
 export default function Hero() {
   const navigate = useNavigate();
   const { darkMode, toggleDarkMode } = useDarkMode();
@@ -68,23 +76,27 @@ export default function Hero() {
     if (dontShowSupport) localStorage.setItem('hideSupportModal', 'true');
   };
 
- const features = [
+const features = [
     { icon: <ChatIcon />, title: "Real-time Chat", desc: "Instant messaging with no delays" },
     { icon: <GroupIcon />, title: "Group Chat", desc: "Create or join groups up to 10 users" },
     { icon: <MembersIcon2 />, title: "Members Sidebar", desc: "See who's in your group chat" },
-    { icon: <AnonymousIcon />, title: "100% Anonymous", desc: "No sign-ups, no profiles needed" },
-    { icon: <LocationIcon />, title: "Location Matching", desc: "Connect with people near you" },
+    { icon: <EmojiFeatureIcon />, title: "Emoji Picker", desc: "Express yourself with emojis" },
+    { icon: <EditFeatureIcon />, title: "Edit Messages", desc: "Edit your sent messages anytime" },
+    { icon: <DeleteFeatureIcon />, title: "Delete Messages", desc: "Remove messages you sent" },
+    { icon: <LongPressIcon />, title: "Long Press Menu", desc: "Hold message for quick actions" },
+    { icon: <SkeletonIcon />, title: "Smooth Loading", desc: "Skeleton screens while loading" },
     { icon: <ReactionIcon />, title: "Message Reactions", desc: "Double-tap to react with hearts" },
     { icon: <ReplyIcon />, title: "Reply & Quote", desc: "Swipe or click to reply" },
+    { icon: <RenameIcon />, title: "Rename Group", desc: "Customize your group name" },
     { icon: <BellIcon />, title: "Announcements", desc: "Stay updated with broadcasts" },
 ];
 
-  const steps = [
+ const steps = [
     { icon: <Step1Icon />, title: "Create Profile", desc: "Enter your name and location" },
-    { icon: <Step2Icon />, title: "Get Matched", desc: "We'll find someone near you" },
+    { icon: <Step2Icon />, title: "Choose Mode", desc: "1v1 or Group Chat (max 10)" },
     { icon: <Step3Icon />, title: "Start Chatting", desc: "Real-time anonymous conversation" },
-    { icon: <Step4Icon />, title: "Skip Anytime", desc: "Find someone new instantly" },
-  ];
+    { icon: <Step4Icon />, title: "Express Yourself", desc: "Emojis, edit, delete & more" },
+];
 
   const badges = [
     { icon: <ShieldIcon />, text: "100% Anonymous" },
