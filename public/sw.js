@@ -1,9 +1,9 @@
-const CACHE_NAME = 'limechat-v2';
+const CACHE_NAME = 'limechat-v3';
 const ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icon.png',
+  '/icon.png', 
 ];
 
 // Install
@@ -17,7 +17,6 @@ self.addEventListener('install', (event) => {
       });
     })
   );
-  // Activate immediately
   self.skipWaiting();
 });
 
@@ -34,7 +33,6 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  // Take control of all clients
   self.clients.claim();
 });
 
@@ -43,7 +41,6 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then(response => {
-        // Cache successful responses
         const responseClone = response.clone();
         caches.open(CACHE_NAME).then(cache => {
           cache.put(event.request, responseClone);
@@ -51,7 +48,6 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        // Offline - try cache
         return caches.match(event.request);
       })
   );

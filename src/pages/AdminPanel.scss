@@ -299,4 +299,75 @@ $font: 'Poppins', sans-serif;
   border-radius: 10px;
   font-weight: 600;
 }
+
+// Add this inside .admin block
+.admin__user-dot--group {
+  background: #a855f7;
+}
+
+// ============================================
+// Stats Dashboard
+// ============================================
+.admin__dashboard {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.admin__card {
+  background: $white;
+  border: 1px solid $gray-200;
+  border-radius: 10px;
+  padding: 16px;
+  &--full { grid-column: 1 / -1; }
+}
+
+.admin__card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: $gray-900;
+  margin-bottom: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+// Device Stats
+.admin__device-bars { display: flex; flex-direction: column; gap: 10px; }
+.admin__device-bar { display: flex; align-items: center; gap: 10px; }
+.admin__device-label { font-size: 11px; color: $gray-600; width: 80px; flex-shrink: 0; }
+.admin__device-track { flex: 1; height: 8px; background: $gray-100; border-radius: 4px; overflow: hidden; }
+.admin__device-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+.admin__device-count { font-size: 12px; font-weight: 600; color: $gray-900; width: 30px; text-align: right; }
+
+// Location Heatmap
+.admin__location-list { display: flex; flex-direction: column; gap: 8px; }
+.admin__location-item { display: flex; align-items: center; gap: 8px; }
+.admin__location-name { font-size: 11px; color: $gray-600; width: 80px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin__location-bar { flex: 1; height: 6px; background: $gray-100; border-radius: 3px; overflow: hidden; }
+.admin__location-fill { height: 100%; background: $lime; border-radius: 3px; transition: width 0.5s ease; }
+.admin__location-count { font-size: 11px; font-weight: 600; color: $gray-900; width: 25px; text-align: right; }
+
+// Peak Hours
+.admin__peak-chart {
+  display: flex; align-items: flex-end; gap: 3px;
+  height: 120px; padding-top: 8px;
+}
+.admin__peak-bar {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  height: 100%; justify-content: flex-end;
+}
+.admin__peak-fill {
+  width: 100%; max-width: 30px; background: $lime;
+  border-radius: 3px 3px 0 0; min-height: 2px;
+  transition: height 0.3s ease;
+}
+.admin__peak-label {
+  font-size: 9px; color: $gray-400; margin-top: 4px;
+}
+
+@media (max-width: 600px) {
+  .admin__dashboard { grid-template-columns: 1fr; }
+  .admin__peak-chart { height: 80px; }
+}
 }

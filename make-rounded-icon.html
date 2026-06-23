@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px;
+      background: #fafafa;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+    h2 { color: #18181b; margin-bottom: 8px; }
+    p { color: #71717a; font-size: 14px; margin: 4px 0; }
+    input { margin: 16px 0; font-size: 14px; }
+    canvas { border: 2px solid #84cc16; border-radius: 16px; margin-top: 12px; }
+    #done { color: #84cc16; font-weight: bold; display: none; }
+    #radius-input { width: 80px; padding: 6px; border: 1px solid #d4d4d8; border-radius: 6px; margin-left: 8px; }
+  </style>
+</head>
+<body>
+  <h2>🦊 LimeChat Icon Rounder</h2>
+  <p>1. Click <strong>Choose File</strong> and select your <strong>icon.jpg</strong></p>
+  <p>2. Adjust roundness if needed</p>
+  <p>3. <strong>Right click</strong> the image → <strong>"Save image as..."</strong> → save as <strong>icon.jpg</strong></p>
+  
+  <label>Roundness: <input type="number" id="radius-input" value="80" min="0" max="256" /></label>
+  <input type="file" id="upload" accept="image/*" />
+  
+  <canvas id="canvas" width="512" height="512" style="display:none"></canvas>
+  <p id="done">✅ Right click the image above and save as <strong>icon.jpg</strong>!</p>
+
+  <script>
+    const input = document.getElementById('upload');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const done = document.getElementById('done');
+    const radiusInput = document.getElementById('radius-input');
+
+    function drawRounded(img, r) {
+      ctx.clearRect(0, 0, 512, 512);
+      
+      // Rounded rectangle clip path
+      ctx.beginPath();
+      ctx.moveTo(r, 0);
+      ctx.lineTo(512 - r, 0);
+      ctx.arcTo(512, 0, 512, r, r);
+      ctx.lineTo(512, 512 - r);
+      ctx.arcTo(512, 512, 512 - r, 512, r);
+      ctx.lineTo(r, 512);
+      ctx.arcTo(0, 512, 0, 512 - r, r);
+      ctx.lineTo(0, r);
+      ctx.arcTo(0, 0, r, 0, r);
+      ctx.closePath();
+      ctx.clip();
+      
+      // White background (in case of transparency)
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 512, 512);
+      
+      // Draw image
+      ctx.drawImage(img, 0, 0, 512, 512);
+      
+      canvas.style.display = 'block';
+      done.style.display = 'block';
+    }
+
+    let loadedImg = null;
+
+    input.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          loadedImg = img;
+          const r = parseInt(radiusInput.value) || 80;
+          drawRounded(img, r);
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    radiusInput.addEventListener('input', () => {
+      if (loadedImg) {
+        const r = parseInt(radiusInput.value) || 80;
+        drawRounded(loadedImg, r);
+      }
+    });
+  </script>
+</body>
+</html>

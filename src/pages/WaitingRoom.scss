@@ -202,6 +202,76 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
       transform: scale(0.97);
     }
   }
+
+  .waiting-room__groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.waiting-room__no-groups {
+  color: $gray-400;
+  font-size: 13px;
+  padding: 20px;
+}
+
+.waiting-room__group-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: $gray-50;
+  border-radius: 10px;
+  border: 1px solid $gray-200;
+}
+
+.waiting-room__group-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.waiting-room__group-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: $gray-900;
+}
+
+.waiting-room__group-count {
+  font-size: 11px;
+  color: $gray-500;
+}
+
+.waiting-room__join-btn {
+  padding: 6px 14px;
+  background: $lime;
+  color: $black;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: $font;
+  &:disabled { background: $gray-200; color: $gray-400; cursor: not-allowed; }
+}
+
+.waiting-room__create-btn {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  color: $lime-dark;
+  border: 2px dashed $lime;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: $font;
+  @include transition;
+  &:hover { background: $lime-light; }
+}
 }
 
 // ============================================
