@@ -51,6 +51,7 @@ export default function ChatRoom() {
   const [isGroupChat, setIsGroupChat] = useState(false);
   const [groupMembers, setGroupMembers] = useState([]);
   const [showMembersPanel, setShowMembersPanel] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
   const textareaRef = useRef(null);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -59,9 +60,52 @@ export default function ChatRoom() {
   const lastTapRef = useRef(0);
   const sendingRef = useRef(false);
   const messagesRef = useRef(messages);
+  const lastTypingEmitRef = useRef(0);
   
   useEffect(() => { messagesRef.current = messages; }, [messages]);
-  useEffect(() => { const ta = textareaRef.current; if (ta) { ta.style.height = '40px'; const nh = Math.min(ta.scrollHeight, 120); ta.style.height = nh + 'px'; ta.style.overflowY = ta.scrollHeight > 120 ? 'auto' : 'hidden'; } }, [message]);
+  
+  // ============================================
+  // ✅ INSTANT AUTO-RESIZE TEXTAREA (No delay on shrink)
+  // ============================================
+// ============================================
+// ✅ INSTANT AUTO-RESIZE — Guaranteed shrink
+// ============================================
+const resizeTextarea = useCallback(() => {
+  const ta = textareaRef.current;
+  if (!ta) return;
+
+  // Step 1: Force height to auto temporarily so scrollHeight becomes accurate
+  ta.style.height = 'auto';
+  ta.style.overflowY = 'hidden';
+  
+  // Step 2: Let browser recalculate
+  const scrollH = ta.scrollHeight;
+  
+  // Step 3: Set final height with limits
+  const newH = Math.min(Math.max(scrollH, 44), 120);
+  ta.style.height = newH + 'px';
+  
+  // Step 4: Only show scrollbar if content exceeds max
+  ta.style.overflowY = scrollH > 120 ? 'auto' : 'hidden';
+}, []);
+
+// Trigger resize
+useEffect(() => {
+  resizeTextarea();
+}, [message, resizeTextarea]);
+
+// Handle window resize
+useEffect(() => {
+  window.addEventListener('resize', resizeTextarea);
+  return () => window.removeEventListener('resize', resizeTextarea);
+}, [resizeTextarea]);
+
+  // Handle window resize (mobile rotate / desktop resize)
+  useEffect(() => {
+    const onResize = () => resizeTextarea();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [resizeTextarea]);
   
   const updateFavicon = useCallback((hasUnread) => { const f = document.querySelector("link[rel='icon']"); if (!f) return; if (hasUnread) { const c = document.createElement('canvas'); c.width = 32; c.height = 32; const x = c.getContext('2d'); x.fillStyle = '#84cc16'; x.beginPath(); x.roundRect(0, 0, 32, 32, 8); x.fill(); x.fillStyle = '#ef4444'; x.beginPath(); x.arc(26, 6, 6, 0, Math.PI * 2); x.fill(); f.href = c.toDataURL(); } else { f.href = '/icon.png'; } }, []);
   
@@ -78,6 +122,15 @@ export default function ChatRoom() {
   const toggleSpacing = () => { const n = spacing === 'comfortable' ? 'compact' : 'comfortable'; setSpacing(n); localStorage.setItem('msgSpacing', n); };
   const getChatSummary = () => { const d = Math.floor((Date.now() - chatStartTime) / 1000); const my = messages.filter(m => m.type === 'message' && m.senderName === 'You').length; const pt = messages.filter(m => m.type === 'message' && m.senderName !== 'You').length; return { duration: `${Math.floor(d/60)}m ${d%60}s`, myMsgs: my, partnerMsgs: pt, total: messages.filter(m => m.type === 'message').length }; };
 
+  // ✅ Smart typing indicator - only emit every 2 seconds max
+  const handleTyping = useCallback(() => {
+    const now = Date.now();
+    if (now - lastTypingEmitRef.current > 2000) {
+      socket.emit('typing', roomId);
+      lastTypingEmitRef.current = now;
+    }
+  }, [roomId]);
+
   useEffect(() => { 
     const us = localStorage.getItem('user'), ps = localStorage.getItem('partner'); 
     if (!us || !ps) { navigate('/profile'); return; } 
@@ -86,12 +139,10 @@ export default function ChatRoom() {
     socket.emit('joinRoom', roomId); 
     setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000);
     
-    // ✅ Check if group chat from sessionStorage
     const isGroup = sessionStorage.getItem('isGroupChat') === 'true';
     if (isGroup) { 
       setIsGroupChat(true); 
       sessionStorage.removeItem('isGroupChat');
-      // ✅ Request member list immediately for group chats
       socket.emit('getGroupMembers', { roomId });
     }
     
@@ -114,36 +165,10 @@ export default function ChatRoom() {
     socket.on('partnerJoined', () => { setConnectionStatus("connected"); setMessages(prev => { if (prev.some(m=>m.type==='system'&&m.text.includes('joined'))) return prev; return [...prev, { type:'system', text:`${partnerData?.name||'Partner'} joined`, timestamp:new Date().toISOString() }]; }); }); 
     socket.on('messageReaction', (data) => { const latest = messagesRef.current; const idx = latest.findIndex(m => m.type==='message' && m.text===data.messageText && Math.abs(new Date(m.timestamp)-new Date(data.messageTimestamp))<5000); if (idx >= 0) setReactions(prev => ({ ...prev, [idx]: data.reaction || null })); }); 
     
-    // ✅ FIXED: Group chat events
-    socket.on('groupJoined', (data) => {
-      setIsGroupChat(true);
-      // Request full member list after joining
-      socket.emit('getGroupMembers', { roomId: data.roomId });
-    });
-    
-    socket.on('groupUserList', (data) => { 
-      if (data.roomId === roomId) { 
-        setGroupMembers(data.members || []); 
-        setIsGroupChat(true); 
-      } 
-    });
-    
-    socket.on('groupUserJoined', (data) => { 
-      if (data.roomId === roomId) { 
-        setGroupMembers(prev => {
-          // Avoid duplicates
-          if (prev.find(m => m.socketId === data.user.socketId)) return prev;
-          return [...prev, data.user];
-        }); 
-      } 
-    });
-    
-    socket.on('groupUserLeft', (data) => { 
-      if (data.roomId === roomId) { 
-        setGroupMembers(prev => prev.filter(m => m.socketId !== data.socketId)); 
-      } 
-    });
-    
+    socket.on('groupJoined', (data) => { setIsGroupChat(true); socket.emit('getGroupMembers', { roomId: data.roomId }); });
+    socket.on('groupUserList', (data) => { if (data.roomId === roomId) { setGroupMembers(data.members || []); setIsGroupChat(true); } });
+    socket.on('groupUserJoined', (data) => { if (data.roomId === roomId) { setGroupMembers(prev => { if (prev.find(m => m.socketId === data.user.socketId)) return prev; return [...prev, data.user]; }); } });
+    socket.on('groupUserLeft', (data) => { if (data.roomId === roomId) { setGroupMembers(prev => prev.filter(m => m.socketId !== data.socketId)); } });
     socket.on('announcement', (data) => setAnnouncement(data)); 
     socket.on('clearAnnouncement', () => setAnnouncement(null)); 
     
@@ -166,7 +191,22 @@ export default function ChatRoom() {
   useEffect(() => { if (autoScroll) scrollToBottom(true); }, [messages, autoScroll]);
   useEffect(() => { const c = messagesContainerRef.current; if (!c) return; let sx = 0, sy = 0; const ts = (e) => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }; const te = (e) => { const dx = e.changedTouches[0].clientX - sx; const dy = e.changedTouches[0].clientY - sy; if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) { const t = e.target.closest('.message'); if (t) { const all = document.querySelectorAll('.chat-messages .message'); const idx = Array.from(all).indexOf(t); const lm = messagesRef.current; if (idx >= 0 && lm[idx]?.type === 'message') handleReply(lm[idx]); } } }; c.addEventListener('touchstart', ts, { passive: true }); c.addEventListener('touchend', te, { passive: true }); return () => { c.removeEventListener('touchstart', ts); c.removeEventListener('touchend', te); }; }, []);
 
-  const sendMessage = () => { if (!message.trim() || !partnerOnline || sendingRef.current) return; sendingRef.current = true; socket.emit('sendMessage', { roomId, message, sender:socket.id, senderName:myInfo.name, timestamp:new Date().toISOString(), replyTo:replyTarget||null }); setMessages(prev => [...prev, { type:'message', text:message, sender:socket.id, senderName:"You", timestamp:new Date().toISOString(), replyTo:replyTarget||null, isQuoted:!!replyTarget }]); setMessage(""); setReplyTarget(null); setAutoScroll(true); if (textareaRef.current) textareaRef.current.style.height = '40px'; setTimeout(() => { sendingRef.current = false; }, 500); };
+  const sendMessage = () => { 
+    if (!message.trim() || !partnerOnline || sendingRef.current) return; 
+    sendingRef.current = true; 
+    socket.emit('sendMessage', { roomId, message, sender:socket.id, senderName:myInfo.name, timestamp:new Date().toISOString(), replyTo:replyTarget||null }); 
+    setMessages(prev => [...prev, { type:'message', text:message, sender:socket.id, senderName:"You", timestamp:new Date().toISOString(), replyTo:replyTarget||null, isQuoted:!!replyTarget }]); 
+    setMessage(""); 
+    setReplyTarget(null); 
+    setAutoScroll(true); 
+    // ✅ Reset textarea height instantly after send
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '44px';
+    }
+    setIsInputFocused(false);
+    setTimeout(() => { sendingRef.current = false; }, 500); 
+  };
+  
   const skip = () => { if (hasLeftRef.current) return; hasLeftRef.current = true; socket.emit('leaveRoom', { roomId, partnerName:myInfo?.name }); localStorage.removeItem('partner'); localStorage.removeItem('roomId'); navigate('/waiting', { replace:true }); };
   const leave = () => { if (hasLeftRef.current) return; hasLeftRef.current = true; socket.emit('leaveRoom', { roomId, partnerName:myInfo?.name }); localStorage.removeItem('partner'); localStorage.removeItem('roomId'); navigate('/profile', { replace:true }); };
   const fmt = (ts) => new Date(ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
@@ -176,27 +216,213 @@ export default function ChatRoom() {
   return (
     <div className="chat-room">
       <Confetti active={showConfetti} />
-      {showLeaveModal && <div className="leave-modal-overlay"><div className="leave-modal"><p className="leave-modal__text">You're chatting with <strong>{partner?.name}</strong></p><div className="leave-modal__warning"><p>If you leave, {partner?.name} will be notified.</p></div><div className="leave-modal__actions"><button className="leave-modal__btn leave-modal__btn--stay" onClick={()=>{setShowLeaveModal(false);window.history.pushState(null,'',window.location.href)}}>Stay</button><button className="leave-modal__btn leave-modal__btn--leave" onClick={leave}>Leave</button></div></div></div>}
-      {showSkipModal && <div className="leave-modal-overlay"><div className="leave-modal"><p className="leave-modal__text">Skip this conversation?</p><div className="leave-modal__warning"><p>You'll be matched with someone new.</p></div><div className="leave-modal__actions"><button className="leave-modal__btn leave-modal__btn--stay" onClick={()=>{setShowSkipModal(false);window.history.pushState(null,'',window.location.href)}}>Stay</button><button className="leave-modal__btn leave-modal__btn--skip" onClick={skip}>Skip & Find New</button></div></div></div>}
-      <div className="chat-header"><div className="chat-header__partner-info"><div className="chat-header__avatar">{init(partner?.name)}</div><div className="chat-header__details"><p className="chat-header__name"><span className={`chat-header__status chat-header__status--${connectionStatus}`} />{isGroupChat ? `Group Chat` : partner?.name||'Unknown'}</p><p className="chat-header__location">{isGroupChat ? `${groupMembers.length} members` : partner?.location||''}</p></div></div><div className="chat-header__actions">{isGroupChat && <button className="chat-header__members-btn" onClick={() => setShowMembersPanel(!showMembersPanel)}><MembersIcon /> {groupMembers.length}</button>}<button className="chat-header__spacing-btn" onClick={toggleSpacing}><SpacingIcon compact={spacing==='compact'} /></button>{!partnerLeft&&<><button className="chat-header__skip-btn" onClick={()=>setShowSkipModal(true)}>Skip</button><button className="chat-header__leave-btn" onClick={()=>setShowLeaveModal(true)}>Leave</button></>}</div></div>
-      {announcement && <div className="chat-announcement"><span className="chat-announcement__icon"><AnnounceIcon /></span><span className="chat-announcement__text">{announcement.text}</span>{announcement.duration>0&&announcement.expiresAt&&<AnnouncementTimer expiresAt={announcement.expiresAt} />}{announcement.duration===0&&<span className="chat-announcement__badge"><AdminBadgeIcon /> Admin</span>}</div>}
+      
+      {showLeaveModal && (
+        <div className="leave-modal-overlay">
+          <div className="leave-modal">
+            <p className="leave-modal__text">You're chatting with <strong>{partner?.name}</strong></p>
+            <div className="leave-modal__warning"><p>If you leave, {partner?.name} will be notified.</p></div>
+            <div className="leave-modal__actions">
+              <button className="leave-modal__btn leave-modal__btn--stay" onClick={()=>{setShowLeaveModal(false);window.history.pushState(null,'',window.location.href)}}>Stay</button>
+              <button className="leave-modal__btn leave-modal__btn--leave" onClick={leave}>Leave</button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {showSkipModal && (
+        <div className="leave-modal-overlay">
+          <div className="leave-modal">
+            <p className="leave-modal__text">Skip this conversation?</p>
+            <div className="leave-modal__warning"><p>You'll be matched with someone new.</p></div>
+            <div className="leave-modal__actions">
+              <button className="leave-modal__btn leave-modal__btn--stay" onClick={()=>{setShowSkipModal(false);window.history.pushState(null,'',window.location.href)}}>Stay</button>
+              <button className="leave-modal__btn leave-modal__btn--skip" onClick={skip}>Skip & Find New</button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <div className="chat-header">
+        <div className="chat-header__partner-info">
+          <div className="chat-header__avatar">{init(partner?.name)}</div>
+          <div className="chat-header__details">
+            <p className="chat-header__name">
+              <span className={`chat-header__status chat-header__status--${connectionStatus}`} />
+              {isGroupChat ? `Group Chat` : partner?.name||'Unknown'}
+            </p>
+            <p className="chat-header__location">
+              {isGroupChat ? `${groupMembers.length} members` : partner?.location||''}
+            </p>
+          </div>
+        </div>
+        <div className="chat-header__actions">
+          {isGroupChat && (
+            <button className="chat-header__members-btn" onClick={() => setShowMembersPanel(!showMembersPanel)}>
+              <MembersIcon /> {groupMembers.length}
+            </button>
+          )}
+          <button className="chat-header__spacing-btn" onClick={toggleSpacing}>
+            <SpacingIcon compact={spacing==='compact'} />
+          </button>
+          {!partnerLeft && (
+            <>
+              <button className="chat-header__skip-btn" onClick={()=>setShowSkipModal(true)}>Skip</button>
+              <button className="chat-header__leave-btn" onClick={()=>setShowLeaveModal(true)}>Leave</button>
+            </>
+          )}
+        </div>
+      </div>
+      
+      {announcement && (
+        <div className="chat-announcement">
+          <span className="chat-announcement__icon"><AnnounceIcon /></span>
+          <span className="chat-announcement__text">{announcement.text}</span>
+          {announcement.duration>0 && announcement.expiresAt && <AnnouncementTimer expiresAt={announcement.expiresAt} />}
+          {announcement.duration===0 && <span className="chat-announcement__badge"><AdminBadgeIcon /> Admin</span>}
+        </div>
+      )}
+      
       <div className="chat-main-area">
         <div className={`chat-messages chat-messages--${spacing}`} ref={messagesContainerRef}>
-          {showScrollBtn && <button className="scroll-to-bottom" onClick={()=>scrollToBottom(true)}><ScrollDownIcon /> New messages</button>}
-          {messages.length===0&&!partnerLeft&&<div className="chat-messages__empty"><div className="chat-messages__empty-icon"><ChatIcon /></div><p className="chat-messages__empty-text">Start chatting with {isGroupChat ? 'the group' : partner?.name}</p><p className="chat-messages__empty-subtext">Send a message to begin</p></div>}
-          {messages.map((msg,i)=><div key={i}>{msg.type==='system'?<div className="system-message"><span className="system-message__text">{msg.text}</span></div>:<div className={`message ${msg.senderName==="You"?'message--sent':'message--received'} ${msg.isQuoted?'message--quoted':''}`} onClick={()=>handleMessageDoubleClick(i)}>{msg.replyTo&&<div className="message__reply-preview"><span className="message__reply-name">{msg.replyTo.senderName}</span><span className="message__reply-text">{msg.replyTo.text.slice(0,50)}{msg.replyTo.text.length>50?'...':''}</span></div>}<span className="message__sender">{msg.senderName==="You"?'You':msg.senderName}</span><div className={`message__bubble ${msg.senderName==="You"?'message__bubble--sent':'message__bubble--received'}`}><Linkify text={msg.text}/></div>{reactions[i]&&<span className="message__reaction"><HeartIcon filled /></span>}<div className="message__actions"><button className="message__reply-btn" onClick={(e)=>{e.stopPropagation();handleReply(msg)}}><ReplyIcon /></button><span className="message__tooltip">Reply</span></div><span className="message__time">{fmt(msg.timestamp)}</span></div>}</div>)}
-          {replyTarget&&<div className="chat-reply-indicator"><div className="chat-reply-indicator__content"><span className="chat-reply-indicator__label">Replying to {replyTarget.senderName}</span><span className="chat-reply-indicator__text">{replyTarget.text.slice(0,40)}</span></div><button className="chat-reply-indicator__cancel" onClick={cancelReply}><CloseIcon /></button></div>}
-          {partnerTyping&&partnerOnline&&<div className="typing-indicator"><div className="typing-indicator__dots"><span/><span/><span/></div>{partner?.name} typing...</div>}
+          {showScrollBtn && (
+            <button className="scroll-to-bottom" onClick={()=>scrollToBottom(true)}>
+              <ScrollDownIcon /> New messages
+            </button>
+          )}
+          
+          {messages.length===0 && !partnerLeft && (
+            <div className="chat-messages__empty">
+              <div className="chat-messages__empty-icon"><ChatIcon /></div>
+              <p className="chat-messages__empty-text">Start chatting with {isGroupChat ? 'the group' : partner?.name}</p>
+              <p className="chat-messages__empty-subtext">Send a message to begin</p>
+            </div>
+          )}
+          
+          {messages.map((msg,i)=> (
+            <div key={i}>
+              {msg.type==='system' ? (
+                <div className="system-message"><span className="system-message__text">{msg.text}</span></div>
+              ) : (
+                <div className={`message ${msg.senderName==="You"?'message--sent':'message--received'} ${msg.isQuoted?'message--quoted':''}`} onClick={()=>handleMessageDoubleClick(i)}>
+                  {msg.replyTo && (
+                    <div className="message__reply-preview">
+                      <span className="message__reply-name">{msg.replyTo.senderName}</span>
+                      <span className="message__reply-text">{msg.replyTo.text.slice(0,50)}{msg.replyTo.text.length>50?'...':''}</span>
+                    </div>
+                  )}
+                  <span className="message__sender">{msg.senderName==="You"?'You':msg.senderName}</span>
+                  <div className={`message__bubble ${msg.senderName==="You"?'message__bubble--sent':'message__bubble--received'}`}><Linkify text={msg.text}/></div>
+                  {reactions[i] && <span className="message__reaction"><HeartIcon filled /></span>}
+                  <div className="message__actions">
+                    <button className="message__reply-btn" onClick={(e)=>{e.stopPropagation();handleReply(msg)}}><ReplyIcon /></button>
+                    <span className="message__tooltip">Reply</span>
+                  </div>
+                  <span className="message__time">{fmt(msg.timestamp)}</span>
+                </div>
+              )}
+            </div>
+          ))}
+          
+          {replyTarget && (
+            <div className="chat-reply-indicator">
+              <div className="chat-reply-indicator__content">
+                <span className="chat-reply-indicator__label">Replying to {replyTarget.senderName}</span>
+                <span className="chat-reply-indicator__text">{replyTarget.text.slice(0,40)}</span>
+              </div>
+              <button className="chat-reply-indicator__cancel" onClick={cancelReply}><CloseIcon /></button>
+            </div>
+          )}
+          
+          {partnerTyping && partnerOnline && (
+            <div className="typing-indicator">
+              <div className="typing-indicator__dots"><span/><span/><span/></div>
+              {partner?.name} typing...
+            </div>
+          )}
           <div ref={messagesEndRef}/>
         </div>
+        
         {isGroupChat && showMembersPanel && (
           <div className="chat-members-panel">
-            <div className="chat-members-panel__header"><h3>Members ({groupMembers.length})</h3><button className="chat-members-panel__close" onClick={() => setShowMembersPanel(false)}><CloseIcon /></button></div>
-            <div className="chat-members-panel__list">{groupMembers.map((m, i) => (<div key={m.socketId || i} className="chat-members-panel__member"><div className="chat-members-panel__avatar" style={{ background: m.socketId === socket.id ? '#84cc16' : '#ecfccb', color: m.socketId === socket.id ? '#09090b' : '#65a30d' }}>{(m.name || '?')[0].toUpperCase()}</div><div className="chat-members-panel__info"><span className="chat-members-panel__name">{m.name} {m.socketId === socket.id ? '(You)' : ''}</span><span className="chat-members-panel__location">📍 {m.location || 'Unknown'}</span></div><div className="chat-members-panel__dot" style={{ background: m.online ? '#84cc16' : '#d4d4d8' }} /></div>))}</div>
+            <div className="chat-members-panel__header">
+              <h3>Members ({groupMembers.length})</h3>
+              <button className="chat-members-panel__close" onClick={() => setShowMembersPanel(false)}><CloseIcon /></button>
+            </div>
+            <div className="chat-members-panel__list">
+              {groupMembers.map((m, i) => (
+                <div key={m.socketId || i} className="chat-members-panel__member">
+                  <div className="chat-members-panel__avatar" style={{ background: m.socketId === socket.id ? '#84cc16' : '#ecfccb', color: m.socketId === socket.id ? '#09090b' : '#65a30d' }}>{(m.name || '?')[0].toUpperCase()}</div>
+                  <div className="chat-members-panel__info">
+                    <span className="chat-members-panel__name">{m.name} {m.socketId === socket.id ? '(You)' : ''}</span>
+                    <span className="chat-members-panel__location">📍 {m.location || 'Unknown'}</span>
+                  </div>
+                  <div className="chat-members-panel__dot" style={{ background: m.online ? '#84cc16' : '#d4d4d8' }} />
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
-      {!partnerLeft ? (<div className="chat-input"><textarea ref={textareaRef} className="chat-input__field" value={message} onChange={(e) => { setMessage(e.target.value); socket.emit('typing', roomId); }} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} placeholder={!partnerOnline ? `${partner?.name} disconnected...` : "Type a message..."} disabled={!partnerOnline} rows={1} /><button className="chat-input__send-btn" onClick={sendMessage} disabled={!partnerOnline || !message.trim()}><SendIcon /></button></div>) : (<div className="partner-left-banner"><div className="partner-left-banner__icon"><WaveIcon /></div><p className="partner-left-banner__title">{partner?.name} has left</p><p className="partner-left-banner__text">You can still read the conversation.</p><div className="chat-summary"><div className="chat-summary__item"><span className="chat-summary__value">{summary.duration}</span><span className="chat-summary__label">Duration</span></div><div className="chat-summary__item"><span className="chat-summary__value">{summary.total}</span><span className="chat-summary__label">Messages</span></div><div className="chat-summary__item"><span className="chat-summary__value">{summary.myMsgs}</span><span className="chat-summary__label">You</span></div><div className="chat-summary__item"><span className="chat-summary__value">{summary.partnerMsgs}</span><span className="chat-summary__label">{partner?.name}</span></div></div><div className="partner-left-banner__actions"><button className="partner-left-banner__btn partner-left-banner__btn--skip" onClick={skip}>Find New Partner</button><button className="partner-left-banner__btn partner-left-banner__btn--leave" onClick={leave}>Back to Profile</button></div></div>)}
+      
+      {!partnerLeft && (
+        <div className="chat-bottom-bar">
+          <button className="chat-bottom-bar__btn chat-bottom-bar__btn--skip" onClick={()=>setShowSkipModal(true)}>Skip</button>
+          <button className="chat-bottom-bar__btn chat-bottom-bar__btn--leave" onClick={()=>setShowLeaveModal(true)}>Leave</button>
+        </div>
+      )}
+
+      {/* ✅ SMART INPUT AREA */}
+      {!partnerLeft ? (
+        <div className={`chat-input ${isInputFocused ? 'chat-input--focused' : ''} ${message.trim() ? 'chat-input--has-text' : ''}`}>
+          <div className="chat-input__wrapper">
+            <textarea 
+              ref={textareaRef} 
+              className="chat-input__field" 
+              value={message} 
+              onChange={(e) => { 
+                setMessage(e.target.value); 
+                handleTyping();
+              }} 
+              onFocus={() => setIsInputFocused(true)}
+              onBlur={() => setIsInputFocused(false)}
+              onKeyDown={(e) => { 
+                if (e.key === 'Enter' && !e.shiftKey) { 
+                  e.preventDefault(); 
+                  sendMessage(); 
+                } 
+              }} 
+              placeholder={!partnerOnline ? `${partner?.name} disconnected...` : "Type a message..."} 
+              disabled={!partnerOnline} 
+              rows={1} 
+            />
+            <button 
+              className={`chat-input__send-btn ${message.trim() ? 'chat-input__send-btn--active' : ''}`}
+              onClick={sendMessage} 
+              disabled={!partnerOnline || !message.trim()}
+              aria-label="Send message"
+            >
+              <SendIcon />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="partner-left-banner">
+          <div className="partner-left-banner__icon"><WaveIcon /></div>
+          <p className="partner-left-banner__title">{partner?.name} has left</p>
+          <p className="partner-left-banner__text">You can still read the conversation.</p>
+          <div className="chat-summary">
+            <div className="chat-summary__item"><span className="chat-summary__value">{summary.duration}</span><span className="chat-summary__label">Duration</span></div>
+            <div className="chat-summary__item"><span className="chat-summary__value">{summary.total}</span><span className="chat-summary__label">Messages</span></div>
+            <div className="chat-summary__item"><span className="chat-summary__value">{summary.myMsgs}</span><span className="chat-summary__label">You</span></div>
+            <div className="chat-summary__item"><span className="chat-summary__value">{summary.partnerMsgs}</span><span className="chat-summary__label">{partner?.name}</span></div>
+          </div>
+          <div className="partner-left-banner__actions">
+            <button className="partner-left-banner__btn partner-left-banner__btn--skip" onClick={skip}>Find New Partner</button>
+            <button className="partner-left-banner__btn partner-left-banner__btn--leave" onClick={leave}>Back to Profile</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

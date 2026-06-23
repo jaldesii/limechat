@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDarkMode } from "../context/DarkModeContext";
 import "./Hero.scss";
 
 // ✅ SVG Icons
@@ -19,9 +20,13 @@ function PhoneIcon({ size = 24 }) { return (<svg width={size} height={size} view
 function InstallIcon({ size = 24 }) { return (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2" /><line x1="12" y1="18" x2="12" y2="18.01" /><path d="M12 8v6M9 11l3 3 3-3" /></svg>);}
 function GroupIcon() { return (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>);}
 function MembersIcon2() { return (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>);}
+// ✅ Dark Mode Icons
+function SunIcon() { return (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>);}
+function MoonIcon() { return (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>);}
 
 export default function Hero() {
   const navigate = useNavigate();
+  const { darkMode, toggleDarkMode } = useDarkMode();
   const [installPrompt, setInstallPrompt] = useState(null);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
@@ -93,6 +98,10 @@ export default function Hero() {
       <nav className="hero__nav">
         <div className="hero__nav-left"><span className="hero__logo"><img src="/icon.png" alt="LimeChat" className="hero__logo-img" />LimeChat</span></div>
         <div className="hero__nav-right">
+          {/* ✅ Dark Mode Toggle */}
+          <button className="hero__dark-toggle" onClick={toggleDarkMode} aria-label="Toggle dark mode" title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+            {darkMode ? <SunIcon /> : <MoonIcon />}
+          </button>
           <a href="https://t.me/admlimech" target="_blank" rel="noopener noreferrer" className="hero__telegram-link"><TelegramIcon size={20} /><span>Contact</span></a>
           {!isInstalled && showInstallBtn && <button className="hero__install-btn" onClick={handleInstall}><PhoneIcon size={16} /><span>Install App</span></button>}
           <button className="hero__nav-btn" onClick={() => navigate('/terms')}>Start Chatting</button>
@@ -124,7 +133,13 @@ export default function Hero() {
 
       <div className="hero__features"><h2 className="hero__features-title">Why LimeChat?</h2><div className="hero__features-grid">{features.map((f, i) => (<div key={i} className="hero__feature-card"><div className="hero__feature-icon">{f.icon}</div><h3 className="hero__feature-name">{f.title}</h3><p className="hero__feature-desc">{f.desc}</p></div>))}</div></div>
 
-      <footer className="hero__footer"><span>© 2026 LimeChat</span><span className="hero__footer-dot">·</span><button className="hero__footer-link" onClick={() => navigate('/terms')}>Terms</button></footer>
+    <footer className="hero__footer">
+  <span>© 2026 LimeChat</span>
+  <span className="hero__footer-dot">·</span>
+  <button className="hero__footer-link" onClick={() => navigate('/faq')}>FAQ</button>
+  <span className="hero__footer-dot">·</span>
+  <button className="hero__footer-link" onClick={() => navigate('/terms')}>Terms</button>
+</footer>
 
       {/* ✅ Support Modal */}
       {showSupportModal && (

@@ -1,73 +1,40 @@
 // ============================================
-// ProfileCreation.scss - Minimal Lime/Gray Theme
+// ProfileCreation.scss - Dark Mode Ready
 // ============================================
 
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
-// Colors
 $lime: #84cc16;
 $lime-light: #ecfccb;
 $lime-dark: #65a30d;
 $lime-hover: #a3e635;
-$gray-50: #fafafa;
-$gray-100: #f4f4f5;
-$gray-200: #e4e4e7;
-$gray-300: #d4d4d8;
-$gray-400: #a1a1aa;
-$gray-500: #71717a;
-$gray-600: #52525b;
-$gray-700: #3f3f46;
-$gray-800: #27272a;
-$gray-900: #18181b;
-$white: #ffffff;
-$black: #09090b;
-$green-100: #d1fae5;
-$green-600: #059669;
 $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
 
-// Mixins
-@mixin transition($property: all, $duration: 0.2s) {
-  transition: $property $duration ease;
-}
+@mixin transition($property: all, $duration: 0.2s) { transition: $property $duration ease; }
 
-@mixin input-focus {
-  outline: none;
-  border-color: $lime;
-  background: $white;
-  box-shadow: 0 0 0 4px rgba($lime, 0.1);
-}
-
-// ============================================
-// Profile Creation Page
-// ============================================
 .profile-creation {
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: $gray-50;
+  background: var(--bg-primary, #fafafa);
   padding: 24px;
   font-family: $font;
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
 
-  // ============================================
-  // Card
-  // ============================================
   &__card {
     width: 100%;
     max-width: 400px;
-    background: $white;
+    background: var(--bg-secondary, #ffffff);
     border-radius: 20px;
     padding: 40px 32px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
+    border: 1px solid var(--border-primary, #e4e4e7);
   }
 
-  // ============================================
-  // Brand
-  // ============================================
   &__brand {
     display: flex;
     align-items: center;
@@ -76,54 +43,38 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
     margin-bottom: 24px;
   }
 
-  &__icon {
-    line-height: 0;
-  }
+  &__icon { line-height: 0; }
 
   &__icon-img {
-    width: 44px;
-    height: 44px;
+    width: 44px; height: 44px;
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   }
 
   &__brand-name {
-    font-size: 16px;
-    font-weight: 700;
-    color: $gray-900;
+    font-size: 16px; font-weight: 700;
+    color: var(--text-primary, #18181b);
     letter-spacing: -0.3px;
   }
 
-  // ============================================
-  // Return Message
-  // ============================================
   &__return-msg {
-    background: $green-100;
-    color: $green-600;
+    background: var(--green-100, #d1fae5);
+    color: var(--green-600, #059669);
     padding: 12px 16px;
     border-radius: 10px;
     margin-bottom: 24px;
     text-align: center;
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 13px; font-weight: 500;
     line-height: 1.6;
     animation: slideDown 0.4s ease;
-    border: 1px solid darken($green-100, 8%);
+    border: 1px solid var(--border-primary, #e4e4e7);
 
-    strong {
-      font-weight: 600;
-      display: block;
-      margin-bottom: 2px;
-    }
+    strong { font-weight: 600; display: block; margin-bottom: 2px; }
   }
 
-  // ============================================
-  // Title & Subtitle
-  // ============================================
   &__title {
-    font-size: 24px;
-    font-weight: 700;
-    color: $gray-900;
+    font-size: 24px; font-weight: 700;
+    color: var(--text-primary, #18181b);
     text-align: center;
     margin: 0 0 6px 0;
     letter-spacing: -0.5px;
@@ -131,25 +82,19 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
 
   &__subtitle {
     font-size: 14px;
-    color: $gray-500;
+    color: var(--text-tertiary, #71717a);
     text-align: center;
     margin: 0 0 32px 0;
     font-weight: 400;
     line-height: 1.5;
   }
 
-  // ============================================
-  // Form
-  // ============================================
   &__form {
     display: flex;
     flex-direction: column;
     gap: 18px;
   }
 
-  // ============================================
-  // Input Group
-  // ============================================
   &__input-group {
     display: flex;
     flex-direction: column;
@@ -157,9 +102,8 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
   &__label {
-    font-size: 12px;
-    font-weight: 600;
-    color: $gray-600;
+    font-size: 12px; font-weight: 600;
+    color: var(--text-secondary, #52525b);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     padding-left: 2px;
@@ -169,56 +113,94 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
     width: 100%;
     padding: 14px 16px;
     border-radius: 12px;
-    border: 1.5px solid $gray-200;
+    border: 1.5px solid var(--border-primary, #e4e4e7);
     font-size: 15px;
     font-family: $font;
     font-weight: 400;
-    background: $gray-50;
-    color: $gray-900;
+    background: var(--bg-tertiary, #f4f4f5);
+    color: var(--text-primary, #18181b);
     box-sizing: border-box;
     @include transition;
 
-    &::placeholder {
-      color: $gray-400;
-      font-weight: 400;
-    }
+    &::placeholder { color: var(--text-muted, #a1a1aa); font-weight: 400; }
 
     &:focus {
-      @include input-focus;
+      outline: none;
+      border-color: var(--lime, #84cc16);
+      background: var(--bg-secondary, #ffffff);
+      box-shadow: 0 0 0 4px rgba($lime, 0.1);
     }
   }
 
-  // ============================================
-  // Start Button
-  // ============================================
+  // Chat Mode Selection
+  &__chat-modes {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 4px;
+  }
+
+  &__mode-btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    border: 2px solid var(--border-primary, #e4e4e7);
+    background: var(--bg-secondary, #ffffff);
+    cursor: pointer;
+    @include transition;
+    text-align: left;
+    font-family: $font;
+
+    &:hover:not(:disabled) {
+      border-color: var(--lime, #84cc16);
+      background: var(--lime-light, #ecfccb);
+    }
+
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    &--group:hover:not(:disabled) {
+      border-color: #fbbf24;
+      background: var(--yellow-bg, #fef3c7);
+    }
+  }
+
+  &__mode-icon { font-size: 32px; flex-shrink: 0; }
+
+  &__mode-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    strong { font-size: 15px; color: var(--text-primary, #18181b); }
+    small { font-size: 12px; color: var(--text-tertiary, #71717a); }
+  }
+
   &__start-btn {
     width: 100%;
     padding: 14px;
     border-radius: 12px;
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 15px; font-weight: 600;
     font-family: $font;
     border: none;
     cursor: pointer;
     margin-top: 6px;
     @include transition;
-    
-    background: $lime;
-    color: $black;
+    background: var(--lime, #84cc16);
+    color: #09090b;
 
     &:hover:not(:disabled) {
-      background: $lime-hover;
+      background: var(--lime-hover, #a3e635);
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba($lime, 0.3);
     }
 
-    &:active:not(:disabled) {
-      transform: translateY(0);
-    }
+    &:active:not(:disabled) { transform: translateY(0); }
 
     &:disabled {
-      background: $gray-200;
-      color: $gray-400;
+      background: var(--border-primary, #e4e4e7);
+      color: var(--text-muted, #a1a1aa);
       cursor: not-allowed;
       transform: none;
       box-shadow: none;
@@ -226,109 +208,36 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
     }
   }
 
-  // ============================================
-  // Footer
-  // ============================================
   &__footer {
     text-align: center;
     margin-top: 24px;
 
     &-text {
       font-size: 12px;
-      color: $gray-400;
-      margin: 0;
-      font-weight: 400;
+      color: var(--text-muted, #a1a1aa);
+      margin: 0; font-weight: 400;
       line-height: 1.6;
     }
 
     &-link {
-      color: $lime-dark;
+      color: var(--lime-dark, #65a30d);
       text-decoration: underline;
       cursor: pointer;
       font-weight: 500;
       @include transition;
-
-      &:hover {
-        color: $lime;
-      }
+      &:hover { color: var(--lime, #84cc16); }
     }
 
     &-hint {
       font-size: 11px;
-      color: $gray-400;
+      color: var(--text-muted, #a1a1aa);
       margin: 8px 0 0 0;
       font-weight: 400;
     }
   }
-  // Chat Mode Selection
-.profile-creation__chat-modes {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 4px;
 }
 
-.profile-creation__mode-btn {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 18px;
-  border-radius: 12px;
-  border: 2px solid $gray-200;
-  background: $white;
-  cursor: pointer;
-  @include transition;
-  text-align: left;
-  font-family: $font;
-
-  &:hover:not(:disabled) {
-    border-color: $lime;
-    background: $lime-light;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  &--1v1:hover:not(:disabled) { border-color: $lime; }
-  &--group:hover:not(:disabled) { border-color: #fbbf24; background: #fef3c7; }
-}
-
-.profile-creation__mode-icon {
-  font-size: 32px;
-  flex-shrink: 0;
-}
-
-.profile-creation__mode-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-
-  strong {
-    font-size: 15px;
-    color: $gray-900;
-  }
-
-  small {
-    font-size: 12px;
-    color: $gray-500;
-  }
-}
-}
-
-// ============================================
-// Animations
-// ============================================
 @keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-    max-height: 0;
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-    max-height: 150px;
-  }
+  from { opacity: 0; transform: translateY(-10px); max-height: 0; }
+  to { opacity: 1; transform: translateY(0); max-height: 150px; }
 }

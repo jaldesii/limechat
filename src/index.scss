@@ -6,20 +6,84 @@
   box-sizing: border-box;
 }
 
-html {
-  overflow-x: hidden;
-  overflow-y: scroll; // Always show vertical scrollbar
-  width: 100%;
-  scrollbar-gutter: stable; // Prevent layout shift
+// ============================================
+// ✅ CSS VARIABLES — Light & Dark Mode
+// ============================================
+:root,
+[data-theme="light"] {
+  --bg-primary: #fafafa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f4f4f5;
+  --bg-elevated: #ffffff;
+  --bg-overlay: #e8e5e1;
+  
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-tertiary: #71717a;
+  --text-muted: #a1a1aa;
+  
+  --border-primary: #e4e4e7;
+  --border-secondary: #f4f4f5;
+  
+  --lime: #84cc16;
+  --lime-light: #ecfccb;
+  --lime-dark: #65a30d;
+  --lime-hover: #a3e635;
+  
+  --yellow-bg: #fef3c7;
+  --yellow-border: #fde68a;
+  --yellow-text: #92400e;
+  
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.12);
+  --shadow-xl: 0 20px 60px rgba(0,0,0,0.15);
 }
 
+[data-theme="dark"] {
+  --bg-primary: #09090b;
+  --bg-secondary: #18181b;
+  --bg-tertiary: #27272a;
+  --bg-elevated: #1a1a1e;
+  --bg-overlay: #0f0f11;
+  
+  --text-primary: #fafafa;
+  --text-secondary: #d4d4d8;
+  --text-tertiary: #a1a1aa;
+  --text-muted: #71717a;
+  
+  --border-primary: #27272a;
+  --border-secondary: #3f3f46;
+  
+  --lime: #84cc16;
+  --lime-light: #1a2e0a;
+  --lime-dark: #a3e635;
+  --lime-hover: #65a30d;
+  
+  --yellow-bg: #2d1f0a;
+  --yellow-border: #5c3d0a;
+  --yellow-text: #fbbf24;
+  
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.5);
+  --shadow-xl: 0 20px 60px rgba(0,0,0,0.6);
+}
+
+html {
+  overflow-x: hidden;
+  overflow-y: scroll;
+  width: 100%;
+  scrollbar-gutter: stable;
+}
 
 body, #root {
   width: 100%;
   min-height: 100vh;
   font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #fafafa;
-  color: #18181b;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 img, svg, video, canvas {

@@ -1,5 +1,5 @@
 // ============================================
-// TermsConditions.scss - Minimal Lime/Gray Theme
+// TermsConditions.scss - Dark Mode Ready
 // ============================================
 
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
@@ -8,30 +8,16 @@ $lime: #84cc16;
 $lime-light: #ecfccb;
 $lime-dark: #65a30d;
 $lime-hover: #a3e635;
-$gray-50: #fafafa;
-$gray-100: #f4f4f5;
-$gray-200: #e4e4e7;
-$gray-300: #d4d4d8;
-$gray-400: #a1a1aa;
-$gray-500: #71717a;
-$gray-600: #52525b;
-$gray-700: #3f3f46;
-$gray-800: #27272a;
-$gray-900: #18181b;
-$white: #ffffff;
-$black: #09090b;
 $red-500: #ef4444;
 $red-100: #fee2e2;
 $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
 
-@mixin transition($property: all, $duration: 0.2s) {
-  transition: $property $duration ease;
-}
+@mixin transition($property: all, $duration: 0.2s) { transition: $property $duration ease; }
 
 .terms {
   min-height: 100vh;
   min-height: 100dvh;
-  background: $gray-50;
+  background: var(--bg-primary, #fafafa);
   padding: 24px;
   font-family: $font;
   display: flex;
@@ -44,52 +30,95 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
   &__card {
     width: 100%;
     max-width: 680px;
-    background: $white;
+    background: var(--bg-secondary, #ffffff);
     border-radius: 20px;
     padding: 40px 36px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
+    border: 1px solid var(--border-primary, #e4e4e7);
     margin: 20px 0;
   }
 
-  // ============================================
-  // Header
-  // ============================================
   &__header {
     text-align: center;
     margin-bottom: 36px;
     padding-bottom: 28px;
-    border-bottom: 1px solid $gray-200;
+    border-bottom: 1px solid var(--border-primary, #e4e4e7);
   }
 
-  &__logo {
-    margin-bottom: 16px;
-  }
+  &__logo { margin-bottom: 16px; }
 
   &__logo-img {
-    width: 80px;
-    height: 80px;
+    width: 80px; height: 80px;
     border-radius: 20px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   }
 
   &__brand {
-    font-size: 28px;
-    font-weight: 700;
-    color: $gray-900;
+    font-size: 28px; font-weight: 700;
+    color: var(--text-primary, #18181b);
     margin: 0 0 4px 0;
     letter-spacing: -0.5px;
   }
 
   &__tagline {
     font-size: 14px;
-    color: $gray-500;
-    margin: 0;
-    font-weight: 400;
+    color: var(--text-tertiary, #71717a);
+    margin: 0; font-weight: 400;
   }
 
-  // ============================================
-  // Content
-  // ============================================
+  // Features Preview
+  &__features {
+    text-align: center;
+    padding: 24px 0;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border-secondary, #f4f4f5);
+  }
+
+  &__features-title {
+    font-size: 16px; font-weight: 600;
+    color: var(--text-primary, #18181b);
+    margin-bottom: 16px;
+  }
+
+  &__features-row {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  &__feature-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 100px;
+    flex: 1;
+    max-width: 150px;
+  }
+
+  &__feature-icon {
+    width: 40px; height: 40px;
+    background: var(--lime-light, #ecfccb);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--lime-dark, #65a30d);
+  }
+
+  &__feature-name {
+    font-size: 12px; font-weight: 600;
+    color: var(--text-primary, #18181b);
+  }
+
+  &__feature-desc {
+    font-size: 10px;
+    color: var(--text-muted, #a1a1aa);
+    line-height: 1.3;
+    text-align: center;
+  }
+
   &__content {
     display: flex;
     flex-direction: column;
@@ -99,23 +128,19 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
 
   &__section {
     h2 {
-      font-size: 15px;
-      font-weight: 600;
-      color: $gray-900;
+      font-size: 15px; font-weight: 600;
+      color: var(--text-primary, #18181b);
       margin: 0 0 8px 0;
     }
 
     p {
       font-size: 13px;
-      color: $gray-600;
+      color: var(--text-secondary, #52525b);
       line-height: 1.7;
       margin: 0 0 8px 0;
       font-weight: 400;
 
-      strong {
-        color: $gray-900;
-        font-weight: 600;
-      }
+      strong { color: var(--text-primary, #18181b); font-weight: 600; }
     }
 
     ul {
@@ -124,34 +149,23 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
 
       li {
         font-size: 13px;
-        color: $gray-600;
+        color: var(--text-secondary, #52525b);
         line-height: 1.7;
         margin-bottom: 5px;
         font-weight: 400;
 
-        &::marker {
-          color: $lime;
-        }
+        &::marker { color: var(--lime, #84cc16); }
 
-        strong {
-          color: $gray-900;
-          font-weight: 600;
-        }
+        strong { color: var(--text-primary, #18181b); font-weight: 600; }
       }
     }
   }
 
-  // ============================================
-  // Agreement Section
-  // ============================================
   &__agreement {
-    border-top: 1px solid $gray-200;
+    border-top: 1px solid var(--border-primary, #e4e4e7);
     padding-top: 28px;
   }
 
-  // ============================================
-  // Custom Checkbox
-  // ============================================
   &__checkbox {
     display: flex;
     align-items: flex-start;
@@ -159,25 +173,19 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
     cursor: pointer;
     margin-bottom: 14px;
     font-size: 13px;
-    color: $gray-600;
+    color: var(--text-secondary, #52525b);
     font-weight: 400;
     line-height: 1.5;
 
-    input[type="checkbox"] {
-      display: none;
-    }
+    input[type="checkbox"] { display: none; }
 
-    strong {
-      color: $gray-900;
-      font-weight: 600;
-    }
+    strong { color: var(--text-primary, #18181b); font-weight: 600; }
   }
 
   &__checkbox-mark {
-    width: 20px;
-    height: 20px;
+    width: 20px; height: 20px;
     min-width: 20px;
-    border: 2px solid $gray-300;
+    border: 2px solid var(--border-primary, #d4d4d8);
     border-radius: 5px;
     display: flex;
     align-items: center;
@@ -187,32 +195,24 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
 
     &::after {
       content: '';
-      width: 10px;
-      height: 6px;
-      border-left: 2px solid $white;
-      border-bottom: 2px solid $white;
+      width: 10px; height: 6px;
+      border-left: 2px solid #ffffff;
+      border-bottom: 2px solid #ffffff;
       transform: rotate(-45deg) translateY(-1px);
       opacity: 0;
       @include transition;
     }
   }
 
-  &__checkbox-text {
-    flex: 1;
-  }
+  &__checkbox-text { flex: 1; }
 
   input[type="checkbox"]:checked + .terms__checkbox-mark {
-    background: $lime;
-    border-color: $lime;
+    background: var(--lime, #84cc16);
+    border-color: var(--lime, #84cc16);
 
-    &::after {
-      opacity: 1;
-    }
+    &::after { opacity: 1; }
   }
 
-  // ============================================
-  // Buttons
-  // ============================================
   &__buttons {
     display: flex;
     flex-direction: column;
@@ -224,30 +224,27 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
     width: 100%;
     padding: 14px;
     border-radius: 12px;
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 15px; font-weight: 600;
     font-family: $font;
     cursor: pointer;
     border: none;
     @include transition;
 
     &--agree {
-      background: $lime;
-      color: $black;
+      background: var(--lime, #84cc16);
+      color: #09090b;
 
       &:hover:not(:disabled) {
-        background: $lime-hover;
+        background: var(--lime-hover, #a3e635);
         transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba($lime, 0.3);
       }
 
-      &:active:not(:disabled) {
-        transform: translateY(0);
-      }
+      &:active:not(:disabled) { transform: translateY(0); }
 
       &:disabled {
-        background: $gray-200;
-        color: $gray-400;
+        background: var(--border-primary, #e4e4e7);
+        color: var(--text-muted, #a1a1aa);
         cursor: not-allowed;
         transform: none;
         box-shadow: none;
@@ -256,8 +253,8 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
 
     &--decline {
       background: transparent;
-      color: $gray-400;
-      border: 1.5px solid $gray-200;
+      color: var(--text-muted, #a1a1aa);
+      border: 1.5px solid var(--border-primary, #e4e4e7);
       font-weight: 500;
       font-size: 13px;
 
@@ -269,71 +266,11 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
     }
   }
 
-  // ============================================
-  // Date
-  // ============================================
   &__date {
     text-align: center;
     font-size: 11px;
-    color: $gray-400;
+    color: var(--text-muted, #a1a1aa);
     margin: 16px 0 0 0;
     font-weight: 400;
   }
-  // ============================================
-// Features Preview
-// ============================================
-.terms__features {
-  text-align: center;
-  padding: 24px 0;
-  margin-bottom: 8px;
-  border-bottom: 1px solid $gray-100;
-}
-
-.terms__features-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: $gray-900;
-  margin-bottom: 16px;
-}
-
-.terms__features-row {
-  display: flex;
-  justify-content: center;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-
-.terms__feature-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  min-width: 100px;
-  flex: 1;
-  max-width: 150px;
-}
-
-.terms__feature-icon {
-  width: 40px;
-  height: 40px;
-  background: $lime-light;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: $lime-dark;
-}
-
-.terms__feature-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: $gray-900;
-}
-
-.terms__feature-desc {
-  font-size: 10px;
-  color: $gray-400;
-  line-height: 1.3;
-  text-align: center;
-}
 }
