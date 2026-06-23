@@ -254,17 +254,14 @@ export default function Hero() {
       </div>
 
       {/* Footer */}
-      <footer className="hero__footer">
-        <span>© 2026 LimeChat</span>
-        <span className="hero__footer-dot">·</span>
-        <button className="hero__footer-link" onClick={() => navigate('/terms')}>
-          Terms
-        </button>
-        <span className="hero__footer-dot">·</span>
-        <button className="hero__footer-link" onClick={() => navigate('/admin')}>
-          Admin
-        </button>
-      </footer>
+     {/* Footer */}
+<footer className="hero__footer">
+  <span>© 2026 LimeChat</span>
+  <span className="hero__footer-dot">·</span>
+  <button className="hero__footer-link" onClick={() => navigate('/terms')}>
+    Terms
+  </button>
+</footer>
     </div>
   );
 }

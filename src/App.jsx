@@ -15,7 +15,7 @@ function App() {
         <Route path="/profile" element={<ProfileCreation />} />
         <Route path="/waiting" element={<WaitingRoom />} />
         <Route path="/chat/:roomId" element={<ChatRoom />} />
-        <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/lime-admin-7x9q" element={<AdminPanel />} />
       </Routes>
     </Router>
   );
