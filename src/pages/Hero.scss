@@ -591,6 +591,84 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
       text-decoration: underline;
     }
   }
+  // ============================================
+// Features Section
+// ============================================
+.hero__features {
+  padding: 80px 32px;
+  background: $gray-50;
+  text-align: center;
+}
+
+.hero__features-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: $gray-900;
+  margin-bottom: 48px;
+  letter-spacing: -0.5px;
+}
+
+.hero__features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.hero__feature-card {
+  background: $white;
+  padding: 32px 24px;
+  border-radius: 14px;
+  border: 1px solid $gray-100;
+  text-align: center;
+  @include transition;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+  }
+}
+
+.hero__feature-icon {
+  width: 48px;
+  height: 48px;
+  background: $lime-light;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  color: $lime-dark;
+}
+
+.hero__feature-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: $gray-900;
+  margin-bottom: 8px;
+}
+
+.hero__feature-desc {
+  font-size: 13px;
+  color: $gray-500;
+  line-height: 1.5;
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .hero__features {
+    padding: 60px 20px;
+  }
+  .hero__features-title {
+    font-size: 24px;
+    margin-bottom: 32px;
+  }
+  .hero__features-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
 }
 
 // ============================================

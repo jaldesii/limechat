@@ -3,10 +3,111 @@ import { useParams, useNavigate } from "react-router-dom";
 import socket from "../services/socket";
 import "./ChatRoom.scss";
 
-// ✅ Countdown timer component
+// ✅ SVG Icons
+function ReplyIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="9 14 4 9 9 4" />
+      <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+    </svg>
+  );
+}
+
+function SendIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13" />
+      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+    </svg>
+  );
+}
+
+function SpacingIcon({ compact }) {
+  return compact ? (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <line x1="8" y1="6" x2="16" y2="6" />
+      <line x1="8" y1="12" x2="16" y2="12" />
+      <line x1="8" y1="18" x2="16" y2="18" />
+    </svg>
+  ) : (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <line x1="8" y1="6" x2="16" y2="6" />
+      <line x1="8" y1="14" x2="16" y2="14" />
+    </svg>
+  );
+}
+
+function HeartIcon({ filled }) {
+  return filled ? (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="#ef4444" stroke="#ef4444" strokeWidth="2">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  ) : null;
+}
+
+function ChatIcon() {
+  return (
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.4">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+function AnnounceIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
+
+function WaveIcon() {
+  return (
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 11V9a5 5 0 0 1 10 0v2" />
+      <path d="M17 11v3a5 5 0 0 1-10 0v-3" />
+      <line x1="12" y1="19" x2="12" y2="22" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
+function ScrollDownIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
+function TimerIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function AdminBadgeIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+    </svg>
+  );
+}
+
 function AnnouncementTimer({ expiresAt }) {
   const [remaining, setRemaining] = useState('');
-  
   useEffect(() => {
     const update = () => {
       const diff = Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000);
@@ -19,40 +120,38 @@ function AnnouncementTimer({ expiresAt }) {
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
   }, [expiresAt]);
-  
   if (!remaining) return null;
-  return <span className="chat-announcement__timer">⏱ {remaining}</span>;
+  return (
+    <span className="chat-announcement__timer">
+      <TimerIcon />
+      {remaining}
+    </span>
+  );
 }
 
-// ✅ Confetti component
 function Confetti({ active }) {
   if (!active) return null;
-  
   const particles = Array.from({ length: 50 }, (_, i) => ({
-    id: i,
-    left: Math.random() * 100,
-    delay: Math.random() * 2,
+    id: i, left: Math.random() * 100, delay: Math.random() * 2,
     color: ['#84cc16', '#a3e635', '#65a30d', '#fbbf24', '#ecfccb'][Math.floor(Math.random() * 5)],
     size: Math.random() * 8 + 4,
   }));
-
   return (
     <div className="confetti-container">
       {particles.map(p => (
-        <div
-          key={p.id}
-          className="confetti-particle"
-          style={{
-            left: `${p.left}%`,
-            animationDelay: `${p.delay}s`,
-            background: p.color,
-            width: `${p.size}px`,
-            height: `${p.size}px`,
-          }}
-        />
+        <div key={p.id} className="confetti-particle" style={{ left: `${p.left}%`, animationDelay: `${p.delay}s`, background: p.color, width: `${p.size}px`, height: `${p.size}px` }} />
       ))}
     </div>
   );
+}
+
+function Linkify({ text }) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) => {
+    if (part.match(urlRegex)) return <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="message__link">{part}</a>;
+    return part;
+  });
 }
 
 export default function ChatRoom() {
@@ -68,282 +167,204 @@ export default function ChatRoom() {
   const [partnerLeft, setPartnerLeft] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState("connected");
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showSkipModal, setShowSkipModal] = useState(false);
   const [announcement, setAnnouncement] = useState(null);
-  
-  // ✅ Auto-scroll state
   const [autoScroll, setAutoScroll] = useState(true);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
-  
-  // ✅ Confetti state
   const [showConfetti, setShowConfetti] = useState(false);
+  const [reactions, setReactions] = useState({});
+  const [spacing, setSpacing] = useState(localStorage.getItem('msgSpacing') || 'comfortable');
+  const [chatStartTime] = useState(Date.now());
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [replyTarget, setReplyTarget] = useState(null);
   
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const hasLeftRef = useRef(false);
-  const hasJoinedRef = useRef(false);
+  const lastTapRef = useRef(0);
+  const sendingRef = useRef(false);
+  const messagesRef = useRef(messages);
 
-  // ✅ Check if user is at bottom
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+  const updateFavicon = useCallback((hasUnread) => {
+    const favicon = document.querySelector("link[rel='icon']");
+    if (!favicon) return;
+    if (hasUnread) {
+      const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 32;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#84cc16'; ctx.beginPath(); ctx.roundRect(0, 0, 32, 32, 8); ctx.fill();
+      ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(26, 6, 6, 0, Math.PI * 2); ctx.fill();
+      favicon.href = canvas.toDataURL();
+    } else { favicon.href = '/icon.png'; }
+  }, []);
+
+  const showNotification = useCallback((senderName, text) => {
+    if (document.hidden && Notification.permission === 'granted') {
+      new Notification(`${senderName} - LimeChat`, { body: text, icon: '/icon.png', badge: '/icon.png', tag: 'limechat-message' });
+      setUnreadCount(prev => { const n = prev + 1; updateFavicon(true); document.title = `(${n}) LimeChat`; return n; });
+    }
+  }, [updateFavicon]);
+
+  useEffect(() => { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); }, []);
+  useEffect(() => {
+    const h = () => { setUnreadCount(0); updateFavicon(false); document.title = 'LimeChat'; };
+    window.addEventListener('focus', h); return () => window.removeEventListener('focus', h);
+  }, [updateFavicon]);
+
   const checkIfAtBottom = useCallback(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-    
-    const threshold = 100; // pixels from bottom
-    const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
-    setAutoScroll(isAtBottom);
-    setShowScrollBtn(!isAtBottom && messages.length > 0);
+    const c = messagesContainerRef.current; if (!c) return;
+    const atBottom = c.scrollHeight - c.scrollTop - c.clientHeight < 100;
+    setAutoScroll(atBottom); setShowScrollBtn(!atBottom && messages.length > 0);
   }, [messages.length]);
 
-  // ✅ Scroll to bottom
   const scrollToBottom = (smooth = true) => {
     messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
-    setAutoScroll(true);
-    setShowScrollBtn(false);
+    setAutoScroll(true); setShowScrollBtn(false);
+  };
+
+  const handleReply = (msg) => {
+    setReplyTarget({ text: msg.text, senderName: msg.senderName === 'You' ? myInfo?.name : partner?.name });
+    document.querySelector('.chat-input__field')?.focus();
+  };
+  const cancelReply = () => setReplyTarget(null);
+
+  const handleMessageDoubleClick = (index) => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 400) {
+      const msg = messagesRef.current[index];
+      if (!msg || msg.type !== 'message') return;
+      const newReaction = reactions[index] === '❤️' ? null : '❤️';
+      setReactions(prev => ({ ...prev, [index]: newReaction }));
+      socket.emit('messageReaction', { roomId, messageIndex: index, messageText: msg.text, messageTimestamp: msg.timestamp, reaction: newReaction, senderName: myInfo?.name });
+    }
+    lastTapRef.current = now;
+  };
+
+  const toggleSpacing = () => { const n = spacing === 'comfortable' ? 'compact' : 'comfortable'; setSpacing(n); localStorage.setItem('msgSpacing', n); };
+
+  const getChatSummary = () => {
+    const d = Math.floor((Date.now() - chatStartTime) / 1000);
+    const my = messages.filter(m => m.type === 'message' && m.senderName === 'You').length;
+    const pt = messages.filter(m => m.type === 'message' && m.senderName !== 'You').length;
+    return { duration: `${Math.floor(d/60)}m ${d%60}s`, myMsgs: my, partnerMsgs: pt, total: messages.filter(m => m.type === 'message').length };
   };
 
   useEffect(() => {
-    const userString = localStorage.getItem('user');
-    const partnerString = localStorage.getItem('partner');
-    if (!userString || !partnerString) { navigate('/'); return; }
-
-    const user = JSON.parse(userString);
-    const partnerData = JSON.parse(partnerString);
-    setMyInfo(user);
-    setPartner(partnerData);
+    const us = localStorage.getItem('user'), ps = localStorage.getItem('partner');
+    if (!us || !ps) { navigate('/profile'); return; }
+    const user = JSON.parse(us), partnerData = JSON.parse(ps);
+    setMyInfo(user); setPartner(partnerData);
     socket.emit('joinRoom', roomId);
-    hasJoinedRef.current = true;
+    setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000);
 
-    // ✅ Trigger confetti on match!
-    setShowConfetti(true);
-    setTimeout(() => setShowConfetti(false), 4000);
+    const events = ['receiveMessage','partnerTyping','partnerDisconnected','partnerReconnected','partnerLeft','partnerJoined','announcement','clearAnnouncement','messageReaction'];
+    events.forEach(e => socket.off(e));
 
     socket.on('receiveMessage', (data) => {
-      setMessages(prev => [...prev, { 
-        type: 'message', text: data.message, sender: data.sender, 
-        senderName: data.senderName, timestamp: data.timestamp 
-      }]);
+      if (data.sender === socket.id) return;
+      setMessages(prev => {
+        if (prev.find(m => m.type==='message' && m.text===data.message && m.senderName===data.senderName && Math.abs(new Date(m.timestamp)-new Date(data.timestamp))<2000)) return prev;
+        return [...prev, { type:'message', text:data.message, sender:data.sender, senderName:data.senderName, timestamp:data.timestamp, replyTo:data.replyTo||null, isQuoted:!!data.replyTo }];
+      });
+      showNotification(data.senderName, data.message);
     });
 
-    socket.on('partnerTyping', () => {
-      setPartnerTyping(true);
-      clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = setTimeout(() => setPartnerTyping(false), 2000);
-    });
-
-    socket.on('partnerDisconnected', () => {
-      setPartnerOnline(false);
-      setConnectionStatus("disconnected");
-      setMessages(prev => [...prev, { type: 'system', text: `${partnerData?.name || 'Partner'} disconnected`, timestamp: new Date().toISOString() }]);
-    });
-
-    socket.on('partnerReconnected', () => {
-      setPartnerOnline(true);
-      setConnectionStatus("connected");
-      setMessages(prev => [...prev, { type: 'system', text: `${partnerData?.name || 'Partner'} is back`, timestamp: new Date().toISOString() }]);
-    });
-
+    socket.on('partnerTyping', () => { setPartnerTyping(true); clearTimeout(typingTimeoutRef.current); typingTimeoutRef.current = setTimeout(() => setPartnerTyping(false), 2000); });
+    socket.on('partnerDisconnected', () => { setPartnerOnline(false); setConnectionStatus("disconnected"); setMessages(prev => [...prev, { type:'system', text:`${partnerData?.name||'Partner'} disconnected`, timestamp:new Date().toISOString() }]); });
+    socket.on('partnerReconnected', () => { setPartnerOnline(true); setConnectionStatus("connected"); setMessages(prev => [...prev, { type:'system', text:`${partnerData?.name||'Partner'} is back`, timestamp:new Date().toISOString() }]); });
     socket.on('partnerLeft', (data) => {
       setPartnerOnline(false); setPartnerLeft(true); setConnectionStatus("left");
       const pn = data?.partnerName || partnerData?.name || 'Partner';
-      setMessages(prev => {
-        if (prev[prev.length-1]?.type === 'system' && prev[prev.length-1].text.includes('left')) return prev;
-        return [...prev, { type: 'system', text: `${pn} left`, timestamp: new Date().toISOString() }];
-      });
+      setMessages(prev => { if (prev[prev.length-1]?.type==='system' && prev[prev.length-1].text.includes('left')) return prev; return [...prev, { type:'system', text:`${pn} left`, timestamp:new Date().toISOString() }]; });
+    });
+    socket.on('partnerJoined', () => { setConnectionStatus("connected"); setMessages(prev => { if (prev.some(m=>m.type==='system'&&m.text.includes('joined'))) return prev; return [...prev, { type:'system', text:`${partnerData?.name||'Partner'} joined`, timestamp:new Date().toISOString() }]; }); });
+    
+    socket.on('messageReaction', (data) => {
+      const latest = messagesRef.current;
+      const idx = latest.findIndex(m => m.type==='message' && m.text===data.messageText && Math.abs(new Date(m.timestamp)-new Date(data.messageTimestamp))<5000);
+      if (idx >= 0) setReactions(prev => ({ ...prev, [idx]: data.reaction || null }));
     });
 
-    socket.on('partnerJoined', () => {
-      setConnectionStatus("connected");
-      setMessages(prev => {
-        if (prev.some(m => m.type === 'system' && m.text.includes('joined'))) return prev;
-        return [...prev, { type: 'system', text: `${partnerData?.name || 'Partner'} joined`, timestamp: new Date().toISOString() }];
-      });
-    });
-
-    socket.on('announcement', (data) => {
-      console.log("📢 ChatRoom received announcement:", data);
-      setAnnouncement(data);
-    });
-
-    socket.on('clearAnnouncement', () => {
-      console.log("📢 ChatRoom cleared announcement");
-      setAnnouncement(null);
-    });
+    socket.on('announcement', (data) => setAnnouncement(data));
+    socket.on('clearAnnouncement', () => setAnnouncement(null));
 
     window.history.pushState(null, '', window.location.href);
     const pop = () => { window.history.pushState(null, '', window.location.href); if (!hasLeftRef.current) setShowLeaveModal(true); };
     const unload = (e) => { if (!hasLeftRef.current) { e.preventDefault(); e.returnValue = ''; } };
-    const keydown = (e) => { if (!hasLeftRef.current && (e.key === 'F5' || (e.ctrlKey && e.key === 'r'))) { e.preventDefault(); setShowLeaveModal(true); } };
-    window.addEventListener('popstate', pop);
-    window.addEventListener('beforeunload', unload);
-    window.addEventListener('keydown', keydown);
-    
+    const keydown = (e) => { if (!hasLeftRef.current && (e.key==='F5'||(e.ctrlKey&&e.key==='r'))) { e.preventDefault(); setShowLeaveModal(true); } };
+    window.addEventListener('popstate', pop); window.addEventListener('beforeunload', unload); window.addEventListener('keydown', keydown);
     scrollToBottom(false);
 
     return () => {
-      socket.off('receiveMessage'); socket.off('partnerTyping');
-      socket.off('partnerDisconnected'); socket.off('partnerReconnected');
-      socket.off('partnerLeft'); socket.off('partnerJoined');
-      socket.off('announcement'); socket.off('clearAnnouncement');
-      window.removeEventListener('popstate', pop);
-      window.removeEventListener('beforeunload', unload);
-      window.removeEventListener('keydown', keydown);
+      events.forEach(e => socket.off(e));
+      window.removeEventListener('popstate', pop); window.removeEventListener('beforeunload', unload); window.removeEventListener('keydown', keydown);
     };
-  }, [roomId, navigate]);
+  }, [roomId, navigate, showNotification]);
 
-  // ✅ Scroll handler
+  useEffect(() => {
+    const c = messagesContainerRef.current; if (!c) return;
+    const h = () => checkIfAtBottom(); c.addEventListener('scroll', h); return () => c.removeEventListener('scroll', h);
+  }, [checkIfAtBottom]);
+
+  useEffect(() => { if (autoScroll) scrollToBottom(true); }, [messages, autoScroll]);
+
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
-    
-    const handleScroll = () => checkIfAtBottom();
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, [checkIfAtBottom]);
-
-  // ✅ Auto-scroll when new messages arrive (if at bottom)
-  useEffect(() => {
-    if (autoScroll) {
-      scrollToBottom(true);
-    }
-  }, [messages, autoScroll]);
+    let startX = 0, startY = 0;
+    const ts = (e) => { startX = e.touches[0].clientX; startY = e.touches[0].clientY; };
+    const te = (e) => {
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        const t = e.target.closest('.message');
+        if (t) {
+          const all = document.querySelectorAll('.chat-messages .message');
+          const idx = Array.from(all).indexOf(t);
+          const lm = messagesRef.current;
+          if (idx >= 0 && lm[idx]?.type === 'message') handleReply(lm[idx]);
+        }
+      }
+    };
+    container.addEventListener('touchstart', ts, { passive: true });
+    container.addEventListener('touchend', te, { passive: true });
+    return () => { container.removeEventListener('touchstart', ts); container.removeEventListener('touchend', te); };
+  }, []);
 
   const sendMessage = () => {
-    if (!message.trim() || !partnerOnline) return;
-    socket.emit('sendMessage', { roomId, message, sender: socket.id, senderName: myInfo.name, timestamp: new Date().toISOString() });
-    setMessages(prev => [...prev, { type: 'message', text: message, sender: socket.id, senderName: "You", timestamp: new Date().toISOString() }]);
-    setMessage("");
-    // Auto-scroll after sending
-    setAutoScroll(true);
+    if (!message.trim() || !partnerOnline || sendingRef.current) return;
+    sendingRef.current = true;
+    socket.emit('sendMessage', { roomId, message, sender:socket.id, senderName:myInfo.name, timestamp:new Date().toISOString(), replyTo:replyTarget||null });
+    setMessages(prev => [...prev, { type:'message', text:message, sender:socket.id, senderName:"You", timestamp:new Date().toISOString(), replyTo:replyTarget||null, isQuoted:!!replyTarget }]);
+    setMessage(""); setReplyTarget(null); setAutoScroll(true);
+    setTimeout(() => { sendingRef.current = false; }, 500);
   };
 
-  const leave = () => {
-    if (hasLeftRef.current) return;
-    hasLeftRef.current = true;
-    socket.emit('leaveRoom', { roomId, partnerName: myInfo?.name });
-    localStorage.removeItem('partner');
-    localStorage.removeItem('roomId');
-    navigate('/', { replace: true });
-  };
+  const skip = () => { if (hasLeftRef.current) return; hasLeftRef.current = true; socket.emit('leaveRoom', { roomId, partnerName:myInfo?.name }); localStorage.removeItem('partner'); localStorage.removeItem('roomId'); navigate('/waiting', { replace:true }); };
+  const leave = () => { if (hasLeftRef.current) return; hasLeftRef.current = true; socket.emit('leaveRoom', { roomId, partnerName:myInfo?.name }); localStorage.removeItem('partner'); localStorage.removeItem('roomId'); navigate('/profile', { replace:true }); };
 
-  const fmt = (ts) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const fmt = (ts) => new Date(ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
   const init = (n) => (n || '?')[0].toUpperCase();
+  const summary = getChatSummary();
 
   return (
     <div className="chat-room">
-      {/* ✅ Confetti */}
       <Confetti active={showConfetti} />
-
-      {/* Leave Modal */}
-      {showLeaveModal && (
-        <div className="leave-modal-overlay">
-          <div className="leave-modal">
-            <p className="leave-modal__text">You're chatting with <strong>{partner?.name}</strong></p>
-            <div className="leave-modal__warning">
-              <p>If you leave, {partner?.name} will be notified.</p>
-            </div>
-            <div className="leave-modal__actions">
-              <button className="leave-modal__btn leave-modal__btn--stay" onClick={() => { setShowLeaveModal(false); window.history.pushState(null, '', window.location.href); }}>Stay</button>
-              <button className="leave-modal__btn leave-modal__btn--leave" onClick={leave}>Leave</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="chat-header">
-        <div className="chat-header__partner-info">
-          <div className="chat-header__avatar">{init(partner?.name)}</div>
-          <div className="chat-header__details">
-            <p className="chat-header__name">
-              <span className={`chat-header__status chat-header__status--${connectionStatus}`} />
-              {partner?.name || 'Unknown'}
-            </p>
-            <p className="chat-header__location">{partner?.location || ''}</p>
-          </div>
-        </div>
-        {!partnerLeft && (
-          <button className="chat-header__leave-btn" onClick={() => setShowLeaveModal(true)}>Leave</button>
-        )}
+      {showLeaveModal && <div className="leave-modal-overlay"><div className="leave-modal"><p className="leave-modal__text">You're chatting with <strong>{partner?.name}</strong></p><div className="leave-modal__warning"><p>If you leave, {partner?.name} will be notified.</p></div><div className="leave-modal__actions"><button className="leave-modal__btn leave-modal__btn--stay" onClick={()=>{setShowLeaveModal(false);window.history.pushState(null,'',window.location.href)}}>Stay</button><button className="leave-modal__btn leave-modal__btn--leave" onClick={leave}>Leave</button></div></div></div>}
+      {showSkipModal && <div className="leave-modal-overlay"><div className="leave-modal"><p className="leave-modal__text">Skip this conversation?</p><div className="leave-modal__warning"><p>You'll be matched with someone new.</p></div><div className="leave-modal__actions"><button className="leave-modal__btn leave-modal__btn--stay" onClick={()=>{setShowSkipModal(false);window.history.pushState(null,'',window.location.href)}}>Stay</button><button className="leave-modal__btn leave-modal__btn--skip" onClick={skip}>Skip & Find New</button></div></div></div>}
+      <div className="chat-header"><div className="chat-header__partner-info"><div className="chat-header__avatar">{init(partner?.name)}</div><div className="chat-header__details"><p className="chat-header__name"><span className={`chat-header__status chat-header__status--${connectionStatus}`} />{partner?.name||'Unknown'}</p><p className="chat-header__location">{partner?.location||''}</p></div></div><div className="chat-header__actions"><button className="chat-header__spacing-btn" onClick={toggleSpacing}><SpacingIcon compact={spacing==='compact'} /></button>{!partnerLeft&&<><button className="chat-header__skip-btn" onClick={()=>setShowSkipModal(true)}>Skip</button><button className="chat-header__leave-btn" onClick={()=>setShowLeaveModal(true)}>Leave</button></>}</div></div>
+      {announcement && <div className="chat-announcement"><span className="chat-announcement__icon"><AnnounceIcon /></span><span className="chat-announcement__text">{announcement.text}</span>{announcement.duration>0&&announcement.expiresAt&&<AnnouncementTimer expiresAt={announcement.expiresAt} />}{announcement.duration===0&&<span className="chat-announcement__badge"><AdminBadgeIcon /> Admin</span>}</div>}
+      <div className={`chat-messages chat-messages--${spacing}`} ref={messagesContainerRef}>
+        {showScrollBtn && <button className="scroll-to-bottom" onClick={()=>scrollToBottom(true)}><ScrollDownIcon /> New messages</button>}
+        {messages.length===0&&!partnerLeft&&<div className="chat-messages__empty"><div className="chat-messages__empty-icon"><ChatIcon /></div><p className="chat-messages__empty-text">Start chatting with {partner?.name}</p><p className="chat-messages__empty-subtext">Send a message to begin</p></div>}
+        {messages.map((msg,i)=><div key={i}>{msg.type==='system'?<div className="system-message"><span className="system-message__text">{msg.text}</span></div>:<div className={`message ${msg.senderName==="You"?'message--sent':'message--received'} ${msg.isQuoted?'message--quoted':''}`} onClick={()=>handleMessageDoubleClick(i)}>{msg.replyTo&&<div className="message__reply-preview"><span className="message__reply-name">{msg.replyTo.senderName}</span><span className="message__reply-text">{msg.replyTo.text.slice(0,50)}{msg.replyTo.text.length>50?'...':''}</span></div>}<span className="message__sender">{msg.senderName==="You"?'You':msg.senderName}</span><div className={`message__bubble ${msg.senderName==="You"?'message__bubble--sent':'message__bubble--received'}`}><Linkify text={msg.text}/></div>{reactions[i]&&<span className="message__reaction"><HeartIcon filled /></span>}<div className="message__actions"><button className="message__reply-btn" onClick={(e)=>{e.stopPropagation();handleReply(msg)}}><ReplyIcon /></button><span className="message__tooltip">Reply</span></div><span className="message__time">{fmt(msg.timestamp)}</span></div>}</div>)}
+        {replyTarget&&<div className="chat-reply-indicator"><div className="chat-reply-indicator__content"><span className="chat-reply-indicator__label">Replying to {replyTarget.senderName}</span><span className="chat-reply-indicator__text">{replyTarget.text.slice(0,40)}</span></div><button className="chat-reply-indicator__cancel" onClick={cancelReply}><CloseIcon /></button></div>}
+        {partnerTyping&&partnerOnline&&<div className="typing-indicator"><div className="typing-indicator__dots"><span/><span/><span/></div>{partner?.name} typing...</div>}
+        <div ref={messagesEndRef}/>
       </div>
-
-      {/* Announcement Banner */}
-      {announcement && (
-        <div className="chat-announcement">
-          <span className="chat-announcement__icon">📢</span>
-          <span className="chat-announcement__text">{announcement.text}</span>
-          {announcement.duration > 0 && announcement.expiresAt && (
-            <AnnouncementTimer expiresAt={announcement.expiresAt} />
-          )}
-          {announcement.duration === 0 && (
-            <span className="chat-announcement__badge">Admin</span>
-          )}
-        </div>
-      )}
-
-      {/* Messages */}
-      <div className="chat-messages" ref={messagesContainerRef}>
-        {/* ✅ Scroll to bottom button */}
-        {showScrollBtn && (
-          <button className="scroll-to-bottom" onClick={() => scrollToBottom(true)}>
-            ↓ New messages
-          </button>
-        )}
-
-        {messages.length === 0 && !partnerLeft && (
-          <div className="chat-messages__empty">
-            <div className="chat-messages__empty-icon">💬</div>
-            <p className="chat-messages__empty-text">Start chatting with {partner?.name}</p>
-            <p className="chat-messages__empty-subtext">Send a message to begin</p>
-          </div>
-        )}
-        
-        {messages.map((msg, i) => (
-          <div key={i}>
-            {msg.type === 'system' ? (
-              <div className="system-message">
-                <span className="system-message__text">{msg.text}</span>
-              </div>
-            ) : (
-              <div className={`message ${msg.senderName === "You" ? 'message--sent' : 'message--received'}`}>
-                <span className="message__sender">{msg.senderName === "You" ? 'You' : msg.senderName}</span>
-                <div className={`message__bubble ${msg.senderName === "You" ? 'message__bubble--sent' : 'message__bubble--received'}`}>{msg.text}</div>
-                <span className="message__time">{fmt(msg.timestamp)}</span>
-              </div>
-            )}
-          </div>
-        ))}
-        
-        {partnerTyping && partnerOnline && (
-          <div className="typing-indicator">
-            <div className="typing-indicator__dots"><span /><span /><span /></div>
-            {partner?.name} typing...
-          </div>
-        )}
-        
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input or Partner Left Banner */}
-      {!partnerLeft ? (
-        <div className="chat-input">
-          <input
-            className="chat-input__field"
-            value={message}
-            onChange={(e) => { setMessage(e.target.value); socket.emit('typing', roomId); }}
-            onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } }}
-            placeholder={!partnerOnline ? `${partner?.name} disconnected...` : "Type a message..."}
-            disabled={!partnerOnline}
-          />
-          <button className="chat-input__send-btn" onClick={sendMessage} disabled={!partnerOnline || !message.trim()}>➤</button>
-        </div>
-      ) : (
-        <div className="partner-left-banner">
-          <div className="partner-left-banner__icon">👋</div>
-          <p className="partner-left-banner__title">{partner?.name} has left</p>
-          <p className="partner-left-banner__text">You can still read the conversation.</p>
-          <button className="partner-left-banner__btn" onClick={leave}>Find new partner</button>
-        </div>
-      )}
+      {!partnerLeft?<div className="chat-input"><input className="chat-input__field" value={message} onChange={(e)=>{setMessage(e.target.value);socket.emit('typing',roomId)}} onKeyPress={(e)=>{if(e.key==='Enter'){e.preventDefault();sendMessage()}}} placeholder={!partnerOnline?`${partner?.name} disconnected...`:"Type a message..."} disabled={!partnerOnline}/><button className="chat-input__send-btn" onClick={sendMessage} disabled={!partnerOnline||!message.trim()}><SendIcon /></button></div>:<div className="partner-left-banner"><div className="partner-left-banner__icon"><WaveIcon /></div><p className="partner-left-banner__title">{partner?.name} has left</p><p className="partner-left-banner__text">You can still read the conversation.</p><div className="chat-summary"><div className="chat-summary__item"><span className="chat-summary__value">{summary.duration}</span><span className="chat-summary__label">Duration</span></div><div className="chat-summary__item"><span className="chat-summary__value">{summary.total}</span><span className="chat-summary__label">Messages</span></div><div className="chat-summary__item"><span className="chat-summary__value">{summary.myMsgs}</span><span className="chat-summary__label">You</span></div><div className="chat-summary__item"><span className="chat-summary__value">{summary.partnerMsgs}</span><span className="chat-summary__label">{partner?.name}</span></div></div><div className="partner-left-banner__actions"><button className="partner-left-banner__btn partner-left-banner__btn--skip" onClick={skip}>Find New Partner</button><button className="partner-left-banner__btn partner-left-banner__btn--leave" onClick={leave}>Back to Profile</button></div></div>}
     </div>
   );
 }

@@ -26,9 +26,6 @@ const uniqueVisitors = new Set();
 let currentAnnouncement = null;
 let expireTimeout = null;
 
-// ============================================
-// AUTO CLEANUP (every 10 seconds)
-// ============================================
 setInterval(() => {
     const now = Date.now();
     allUsers = allUsers.filter(user => {
@@ -41,9 +38,6 @@ setInterval(() => {
     broadcastAdminUpdate();
 }, 10000);
 
-// ============================================
-// ROUTES
-// ============================================
 app.get("/status", (req, res) => res.json({
     waitingUsers: waitingUsers.length,
     activeRooms: activeRooms.size,
@@ -56,112 +50,56 @@ app.get("/status", (req, res) => res.json({
     announcement: currentAnnouncement
 }));
 
-// ============================================
-// SOCKET.IO
-// ============================================
 io.on("connection", (socket) => {
     const isAdmin = socket.handshake.query.role === 'admin';
     
-    // ============================================
-    // ADMIN CONNECTION
-    // ============================================
     if (isAdmin) {
         console.log("🔑 Admin connected:", socket.id);
-        
         socket.emit('adminUpdate', buildAdminData());
         socket.on('adminGetData', () => socket.emit('adminUpdate', buildAdminData()));
-        
         socket.on('adminClearStale', () => {
             allUsers = allUsers.filter(u => (u.status === 'connected' && u.roomId) || u.status === 'waiting');
-            console.log("🧹 Admin cleared stale users");
             broadcastAdminUpdate();
         });
-        
         socket.on('adminReset', () => {
-            allUsers = [];
-            waitingUsers = [];
-            activeRooms.clear();
-            matchedUsers.clear();
-            uniqueVisitors.clear();
-            totalMatches = 0;
-            currentAnnouncement = null;
-            if (expireTimeout) clearTimeout(expireTimeout);
-            expireTimeout = null;
-            console.log("🔄 Admin reset all data");
+            allUsers = []; waitingUsers = []; activeRooms.clear(); matchedUsers.clear();
+            uniqueVisitors.clear(); totalMatches = 0; currentAnnouncement = null;
+            if (expireTimeout) clearTimeout(expireTimeout); expireTimeout = null;
             broadcastAdminUpdate();
         });
-        
-        // Send announcement with auto-expire
         socket.on('adminAnnouncement', (data) => {
-            if (expireTimeout) {
-                clearTimeout(expireTimeout);
-                expireTimeout = null;
-            }
-            
+            if (expireTimeout) { clearTimeout(expireTimeout); expireTimeout = null; }
             const duration = data.duration || 5;
-            const expiresAt = duration > 0 
-                ? new Date(Date.now() + duration * 60 * 1000).toISOString() 
-                : null;
-            
-            currentAnnouncement = { 
-                text: data.text, 
-                time: new Date().toISOString(),
-                duration: duration,
-                expiresAt: expiresAt
-            };
-            
-            console.log(`📢 Announcement: "${data.text}" (${duration > 0 ? duration + 'min' : 'manual'})`);
-            
+            const expiresAt = duration > 0 ? new Date(Date.now() + duration * 60 * 1000).toISOString() : null;
+            currentAnnouncement = { text: data.text, time: new Date().toISOString(), duration, expiresAt };
             socket.broadcast.emit('announcement', currentAnnouncement);
-            
             if (duration > 0) {
                 expireTimeout = setTimeout(() => {
-                    console.log(`⏰ Announcement expired: "${data.text}"`);
-                    currentAnnouncement = null;
-                    expireTimeout = null;
-                    io.emit('clearAnnouncement');
-                    broadcastAdminUpdate();
+                    currentAnnouncement = null; expireTimeout = null;
+                    io.emit('clearAnnouncement'); broadcastAdminUpdate();
                 }, duration * 60 * 1000);
             }
-            
             broadcastAdminUpdate();
         });
-        
         socket.on('adminClearAnnouncement', () => {
-            console.log('📢 Announcement manually cleared');
             if (expireTimeout) { clearTimeout(expireTimeout); expireTimeout = null; }
             currentAnnouncement = null;
             socket.broadcast.emit('clearAnnouncement');
             broadcastAdminUpdate();
         });
-        
         socket.on('disconnect', () => console.log("🔑 Admin disconnected:", socket.id));
         return;
     }
     
-    // ============================================
-    // NORMAL USER CONNECTION
-    // ============================================
     const clientId = socket.handshake.query.clientId || socket.id;
-    console.log(`🔌 User: ${socket.id} (${clientId.slice(0, 8)}...)`);
-    
     waitingUsers = waitingUsers.filter(u => u.socketId !== socket.id);
     const existing = allUsers.find(u => u.clientId === clientId);
     
     if (existing) {
-        existing.socketId = socket.id;
-        existing.status = 'connected';
-        existing.lastActive = new Date().toISOString();
+        existing.socketId = socket.id; existing.status = 'connected'; existing.lastActive = new Date().toISOString();
     } else {
         uniqueVisitors.add(clientId);
-        allUsers.push({
-            socketId: socket.id, clientId,
-            name: 'Anonymous', location: 'Unknown',
-            status: 'connected',
-            joinedAt: new Date().toISOString(),
-            lastActive: new Date().toISOString(),
-            roomId: null
-        });
+        allUsers.push({ socketId: socket.id, clientId, name: 'Anonymous', location: 'Unknown', status: 'connected', joinedAt: new Date().toISOString(), lastActive: new Date().toISOString(), roomId: null });
     }
     broadcastAdminUpdate();
 
@@ -189,17 +127,10 @@ io.on("connection", (socket) => {
             
             const s1 = io.sockets.sockets.get(u1.socketId), s2 = io.sockets.sockets.get(u2.socketId);
             if (s1 && s2) {
-                s1.join(roomId); s2.join(roomId);
-                totalMatches++;
-                
+                s1.join(roomId); s2.join(roomId); totalMatches++;
                 io.to(u1.socketId).emit("matched", { roomId, partner: { name: u2.name, location: u2.location } });
                 io.to(u2.socketId).emit("matched", { roomId, partner: { name: u1.name, location: u1.location } });
-                
-                if (currentAnnouncement) {
-                    io.to(u1.socketId).emit('announcement', currentAnnouncement);
-                    io.to(u2.socketId).emit('announcement', currentAnnouncement);
-                }
-                
+                if (currentAnnouncement) { io.to(u1.socketId).emit('announcement', currentAnnouncement); io.to(u2.socketId).emit('announcement', currentAnnouncement); }
                 broadcastToAdmins('adminMatch', { roomId, user1: u1.name, user2: u2.name, startedAt: new Date().toISOString() });
                 broadcastAdminUpdate();
             }
@@ -207,16 +138,15 @@ io.on("connection", (socket) => {
     });
 
     socket.on("leaveQueue", () => { waitingUsers = waitingUsers.filter(u => u.socketId !== socket.id); updateUser(socket.id, { status: 'disconnected' }); broadcastAdminUpdate(); });
-    socket.on("joinRoom", (roomId) => {
-        socket.join(roomId);
-        updateUser(socket.id, { roomId, lastActive: new Date().toISOString() });
-        socket.to(roomId).emit("partnerJoined");
-        if (currentAnnouncement) socket.emit('announcement', currentAnnouncement);
-    });
+    socket.on("joinRoom", (roomId) => { socket.join(roomId); updateUser(socket.id, { roomId, lastActive: new Date().toISOString() }); socket.to(roomId).emit("partnerJoined"); if (currentAnnouncement) socket.emit('announcement', currentAnnouncement); });
     socket.on("sendMessage", (data) => { socket.to(data.roomId).emit("receiveMessage", data); updateUser(socket.id, { lastActive: new Date().toISOString() }); });
     socket.on("typing", (roomId) => { socket.to(roomId).emit("partnerTyping"); });
-    socket.on("userAway", (roomId) => socket.to(roomId).emit("partnerDisconnected"));
-    socket.on("userBack", (roomId) => socket.to(roomId).emit("partnerReconnected"));
+    
+    // ✅ Reaction broadcast
+    socket.on("messageReaction", (data) => {
+        socket.to(data.roomId).emit("messageReaction", data);
+    });
+    
     socket.on("leaveRoom", (data) => {
         socket.to(data.roomId).emit("partnerLeft", { partnerName: data.partnerName });
         socket.leave(data.roomId); matchedUsers.delete(socket.id);
@@ -233,9 +163,6 @@ io.on("connection", (socket) => {
     });
 });
 
-// ============================================
-// HELPERS
-// ============================================
 function getAdminSockets() { const a = []; io.sockets.sockets.forEach(s => { if (s.handshake.query.role === 'admin') a.push(s.id); }); return a; }
 function broadcastToAdmins(e, d) { getAdminSockets().forEach(id => io.to(id).emit(e, d)); }
 function updateUser(sid, upd) { const i = allUsers.findIndex(u => u.socketId === sid); if (i !== -1) allUsers[i] = { ...allUsers[i], ...upd }; }
@@ -243,22 +170,12 @@ function getActiveChatsList() { const c = []; activeRooms.forEach((r, rid) => { 
 function buildAdminData() { return { users: allUsers.filter(u => (u.status === 'connected' && u.roomId) || u.status === 'waiting' || (Date.now() - new Date(u.lastActive).getTime()) < 60000), activeChats: getActiveChatsList(), totalVisitors: uniqueVisitors.size, totalMatches, activeNow: allUsers.filter(u => u.status === 'connected' && u.roomId).length, waitingNow: allUsers.filter(u => u.status === 'waiting').length, announcement: currentAnnouncement }; }
 function broadcastAdminUpdate() { broadcastToAdmins('adminUpdate', buildAdminData()); }
 
-// ============================================
-// ✅ SERVE STATIC FILES IN PRODUCTION
-// ============================================
 if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, 'dist')));
-  app.get('/*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
+    app.get('/*', (req, res) => { res.sendFile(path.join(__dirname, 'dist', 'index.html')); });
 }
 
-// ============================================
-// START SERVER
-// ============================================
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📊 Status: http://localhost:${PORT}/status`);
-    console.log(`⏰ Auto-expire announcements enabled`);
 });

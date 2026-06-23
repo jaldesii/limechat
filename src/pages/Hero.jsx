@@ -2,7 +2,49 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Hero.scss";
 
-// ✅ Telegram SVG Icon Component
+// ✅ SVG Icons
+function ChatIcon() { return (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+);}
+
+function AnonymousIcon() { return (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);}
+
+function LocationIcon() { return (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+    <circle cx="12" cy="10" r="3" />
+  </svg>
+);}
+
+function ReactionIcon() { return (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+  </svg>
+);}
+
+function ReplyIcon() { return (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="9 14 4 9 9 4" />
+    <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+  </svg>
+);}
+
+function BellIcon() { return (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+  </svg>
+);}
+
 function TelegramIcon({ size = 24 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
@@ -11,7 +53,6 @@ function TelegramIcon({ size = 24 }) {
   );
 }
 
-// ✅ Phone SVG Icon Component
 function PhoneIcon({ size = 24 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -21,7 +62,6 @@ function PhoneIcon({ size = 24 }) {
   );
 }
 
-// ✅ Install Icon (Phone + Arrow Down)
 function InstallIcon({ size = 24 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -45,64 +85,44 @@ export default function Hero() {
       setIsInstalled(true);
       return;
     }
-
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     setIsIOS(isIOSDevice);
-
     const handleBeforeInstall = (e) => {
       e.preventDefault();
       setInstallPrompt(e);
-      setTimeout(() => {
-        setShowInstallBtn(true);
-        setShowInstallBanner(true);
-      }, 2000);
+      setTimeout(() => { setShowInstallBtn(true); setShowInstallBanner(true); }, 2000);
     };
-
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-
     window.addEventListener('appinstalled', () => {
-      setIsInstalled(true);
-      setShowInstallBtn(false);
-      setShowInstallBanner(false);
-      setInstallPrompt(null);
-      console.log('🎉 LimeChat installed!');
+      setIsInstalled(true); setShowInstallBtn(false); setShowInstallBanner(false); setInstallPrompt(null);
     });
-
-    const fallbackTimer = setTimeout(() => {
-      if (!installPrompt && !isInstalled) {
-        setShowInstallBanner(true);
-      }
-    }, 5000);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
-      clearTimeout(fallbackTimer);
-    };
+    const fallbackTimer = setTimeout(() => { if (!installPrompt && !isInstalled) setShowInstallBanner(true); }, 5000);
+    return () => { window.removeEventListener('beforeinstallprompt', handleBeforeInstall); clearTimeout(fallbackTimer); };
   }, []);
 
   const handleInstall = async () => {
     if (installPrompt) {
       installPrompt.prompt();
       const { outcome } = await installPrompt.userChoice;
-
-      if (outcome === 'accepted') {
-        console.log('✅ User accepted install');
-        setIsInstalled(true);
-      } else {
-        console.log('❌ User declined install');
-      }
-
-      setInstallPrompt(null);
-      setShowInstallBtn(false);
-      setShowInstallBanner(false);
+      if (outcome === 'accepted') setIsInstalled(true);
+      setInstallPrompt(null); setShowInstallBtn(false); setShowInstallBanner(false);
     } else if (isIOS) {
-      alert('To install LimeChat on your iPhone/iPad:\n\n1. Tap the Share button 📤\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add"');
+      alert('To install LimeChat on your iPhone/iPad:\n\n1. Tap the Share button\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add"');
       setShowInstallBanner(false);
     } else {
-      alert('To install LimeChat on your computer:\n\n1. Click the install icon (⊕) in the address bar\n2. Or use Chrome Menu → Install LimeChat');
+      alert('To install LimeChat:\n\n1. Click the install icon in the address bar\n2. Or use Chrome Menu → Install LimeChat');
       setShowInstallBanner(false);
     }
   };
+
+  const features = [
+    { icon: <ChatIcon />, title: "Real-time Chat", desc: "Instant messaging with no delays" },
+    { icon: <AnonymousIcon />, title: "100% Anonymous", desc: "No sign-ups, no profiles needed" },
+    { icon: <LocationIcon />, title: "Location Matching", desc: "Connect with people near you" },
+    { icon: <ReactionIcon />, title: "Message Reactions", desc: "Double-tap to react with hearts" },
+    { icon: <ReplyIcon />, title: "Reply & Quote", desc: "Swipe or click to reply to messages" },
+    { icon: <BellIcon />, title: "Announcements", desc: "Stay updated with broadcast messages" },
+  ];
 
   return (
     <div className="hero">
@@ -115,24 +135,12 @@ export default function Hero() {
           </span>
         </div>
         <div className="hero__nav-right">
-          {/* ✅ Telegram Contact Link */}
-          <a
-            href="https://t.me/admlimech"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hero__telegram-link"
-            aria-label="Contact on Telegram"
-          >
+          <a href="https://t.me/admlimech" target="_blank" rel="noopener noreferrer" className="hero__telegram-link" aria-label="Contact on Telegram">
             <TelegramIcon size={20} />
             <span>Contact</span>
           </a>
-
           {!isInstalled && showInstallBtn && (
-            <button
-              id="pwa-install-btn"
-              className="hero__install-btn"
-              onClick={handleInstall}
-            >
+            <button id="pwa-install-btn" className="hero__install-btn" onClick={handleInstall}>
               <PhoneIcon size={16} />
               <span>Install App</span>
             </button>
@@ -166,61 +174,35 @@ export default function Hero() {
             </button>
           </div>
 
-          {/* ✅ Telegram CTA */}
+          {/* Telegram CTA */}
           <div className="hero__telegram-cta">
             <TelegramIcon size={18} />
             <div className="hero__telegram-cta-text">
               <span>Need help? Contact us on </span>
-              <a
-                href="https://t.me/admlimech"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hero__telegram-cta-link"
-              >
-                Telegram
-              </a>
+              <a href="https://t.me/admlimech" target="_blank" rel="noopener noreferrer" className="hero__telegram-cta-link">Telegram</a>
               <span className="hero__telegram-cta-divider">·</span>
-              <span className="hero__telegram-cta-promo">
-                Want to post an announcement? DM for pricing (₱)
-              </span>
+              <span className="hero__telegram-cta-promo">Want to post an announcement? DM for pricing (₱)</span>
             </div>
           </div>
 
-          {/* ✅ PWA Install banner */}
+          {/* PWA Install banner */}
           {!isInstalled && showInstallBanner && (
             <div className="hero__install-banner">
-              <div className="hero__install-banner-icon">
-                <InstallIcon size={36} />
-              </div>
+              <div className="hero__install-banner-icon"><InstallIcon size={36} /></div>
               <div className="hero__install-banner-text">
                 <strong>Add to Home Screen</strong>
-                <span>
-                  {isIOS
-                    ? 'Tap Share → Add to Home Screen'
-                    : 'Install LimeChat for a better experience'}
-                </span>
+                <span>{isIOS ? 'Tap Share → Add to Home Screen' : 'Install LimeChat for a better experience'}</span>
               </div>
-              <button className="hero__install-banner-btn" onClick={handleInstall}>
-                {isIOS ? 'How to Install' : 'Install'}
-              </button>
+              <button className="hero__install-banner-btn" onClick={handleInstall}>{isIOS ? 'How to Install' : 'Install'}</button>
             </div>
           )}
 
           <div className="hero__stats">
-            <div className="hero__stat">
-              <span className="hero__stat-num">100+</span>
-              <span className="hero__stat-lbl">Daily Chats</span>
-            </div>
+            <div className="hero__stat"><span className="hero__stat-num">100+</span><span className="hero__stat-lbl">Daily Chats</span></div>
             <div className="hero__stat-divider" />
-            <div className="hero__stat">
-              <span className="hero__stat-num">100%</span>
-              <span className="hero__stat-lbl">Anonymous</span>
-            </div>
+            <div className="hero__stat"><span className="hero__stat-num">100%</span><span className="hero__stat-lbl">Anonymous</span></div>
             <div className="hero__stat-divider" />
-            <div className="hero__stat">
-              <span className="hero__stat-num">Free</span>
-              <span className="hero__stat-lbl">Forever</span>
-            </div>
+            <div className="hero__stat"><span className="hero__stat-num">Free</span><span className="hero__stat-lbl">Forever</span></div>
           </div>
         </div>
 
@@ -253,15 +235,26 @@ export default function Hero() {
         </div>
       </div>
 
+      {/* ✅ Features Section */}
+      <div className="hero__features">
+        <h2 className="hero__features-title">Why LimeChat?</h2>
+        <div className="hero__features-grid">
+          {features.map((f, i) => (
+            <div key={i} className="hero__feature-card">
+              <div className="hero__feature-icon">{f.icon}</div>
+              <h3 className="hero__feature-name">{f.title}</h3>
+              <p className="hero__feature-desc">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Footer */}
-     {/* Footer */}
-<footer className="hero__footer">
-  <span>© 2026 LimeChat</span>
-  <span className="hero__footer-dot">·</span>
-  <button className="hero__footer-link" onClick={() => navigate('/terms')}>
-    Terms
-  </button>
-</footer>
+      <footer className="hero__footer">
+        <span>© 2026 LimeChat</span>
+        <span className="hero__footer-dot">·</span>
+        <button className="hero__footer-link" onClick={() => navigate('/terms')}>Terms</button>
+      </footer>
     </div>
   );
 }
