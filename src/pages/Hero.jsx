@@ -117,7 +117,7 @@ export default function Hero() {
         <div className="hero__nav-right">
           {/* ✅ Telegram Contact Link */}
           <a
-            href="https://t.me/adminlimech"
+            href="https://t.me/admlimech"
             target="_blank"
             rel="noopener noreferrer"
             className="hero__telegram-link"
