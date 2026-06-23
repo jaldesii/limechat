@@ -28,722 +28,148 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-// ============================================
-// Hero Container
-// ============================================
 .hero {
-  min-height: 100vh;
-  background: $white;
-  font-family: $font;
-  color: $gray-900;
-  display: flex;
-  flex-direction: column;
-  overflow-x: hidden;
-  width: 100%;
-  max-width: 100vw;
+  min-height: 100vh; background: $white; font-family: $font; color: $gray-900;
+  display: flex; flex-direction: column; overflow-x: hidden; width: 100%; max-width: 100vw;
 
-  // ============================================
   // Navbar
-  // ============================================
-  &__nav {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px 32px;
-    border-bottom: 1px solid $gray-100;
-    flex-shrink: 0;
-  }
+  &__nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 32px; border-bottom: 1px solid $gray-100; flex-shrink: 0; }
+  &__nav-left { display: flex; align-items: center; }
+  &__logo { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; color: $gray-900; display: flex; align-items: center; gap: 10px; }
+  &__logo-img { width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0; }
+  &__nav-right { display: flex; align-items: center; gap: 12px; }
+  &__nav-btn { padding: 10px 20px; background: $lime; color: $black; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; font-family: $font; cursor: pointer; @include transition; &:hover { background: $lime-hover; transform: translateY(-1px); box-shadow: 0 4px 12px rgba($lime, 0.3); } }
+  &__telegram-link { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: $white; color: #0088cc; border: 1.5px solid #0088cc; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; @include transition; white-space: nowrap; svg { flex-shrink: 0; } &:hover { background: #0088cc; color: $white; transform: translateY(-1px); } }
+  &__install-btn { padding: 8px 14px; background: $white; color: $lime-dark; border: 1.5px solid $lime; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; @include transition; animation: pulse-install 2s infinite; display: flex; align-items: center; gap: 6px; white-space: nowrap; svg { flex-shrink: 0; } &:hover { background: $lime; color: $black; } }
 
-  &__nav-left {
-    display: flex;
-    align-items: center;
-  }
-
-  &__logo {
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-    color: $gray-900;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  &__logo-img {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    flex-shrink: 0;
-  }
-
-  &__logo-dot {
-    color: $lime;
-    font-size: 12px;
-    animation: pulse-dot 2s infinite;
-  }
-
-  &__nav-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  &__nav-btn {
-    padding: 10px 20px;
-    background: $lime;
-    color: $black;
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    font-family: $font;
-    cursor: pointer;
-    @include transition;
-
-    &:hover {
-      background: $lime-hover;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba($lime, 0.3);
-    }
-
-    &:active {
-      transform: translateY(0);
-    }
-  }
-
-  // ✅ Telegram Link in Navbar
-  &__telegram-link {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
-    background: $white;
-    color: #0088cc;
-    border: 1.5px solid #0088cc;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: 600;
-    font-family: $font;
-    text-decoration: none;
-    cursor: pointer;
-    @include transition;
-    white-space: nowrap;
-
-    svg {
-      flex-shrink: 0;
-    }
-
-    &:hover {
-      background: #0088cc;
-      color: $white;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(0, 136, 204, 0.3);
-    }
-
-    &:active {
-      transform: translateY(0);
-    }
-  }
-
-  // ✅ Install Button (in navbar)
-  &__install-btn {
-    padding: 8px 14px;
-    background: $white;
-    color: $lime-dark;
-    border: 1.5px solid $lime;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: 600;
-    font-family: $font;
-    cursor: pointer;
-    @include transition;
-    animation: pulse-install 2s infinite;
-    white-space: nowrap;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-
-    svg {
-      flex-shrink: 0;
-    }
-
-    &:hover {
-      background: $lime;
-      color: $black;
-    }
-  }
-
-  // ============================================
   // Content
-  // ============================================
-  &__content {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 60px 32px;
-    max-width: 1200px;
-    margin: 0 auto;
-    width: 100%;
-    gap: 60px;
-    flex-wrap: wrap;
-  }
+  &__content { flex: 1; display: flex; align-items: center; justify-content: space-between; padding: 60px 32px; max-width: 1200px; margin: 0 auto; width: 100%; gap: 60px; flex-wrap: wrap; }
+  &__text { flex: 1; min-width: 300px; max-width: 540px; }
+  &__title { font-size: 52px; font-weight: 800; line-height: 1.15; letter-spacing: -1.5px; color: $gray-900; margin-bottom: 20px; }
+  &__title-accent { color: $lime-dark; position: relative; &::after { content: ''; position: absolute; bottom: 4px; left: 0; right: 0; height: 8px; background: $lime-light; z-index: -1; border-radius: 4px; } }
+  &__subtitle { font-size: 18px; color: $gray-500; line-height: 1.7; margin-bottom: 36px; font-weight: 400; max-width: 440px; }
+  &__actions { display: flex; align-items: center; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
+  &__cta { padding: 16px 28px; background: $lime; color: $black; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; @include transition; &:hover { background: $lime-hover; transform: translateY(-2px); box-shadow: 0 8px 24px rgba($lime, 0.35); } }
+  &__cta-arrow { font-size: 20px; }
+  &__link { background: none; border: none; color: $gray-500; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; @include transition; &:hover { color: $gray-900; } }
+  &__telegram-cta { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 28px; padding: 10px 16px; background: rgba(0,136,204,0.05); border: 1px solid rgba(0,136,204,0.15); border-radius: 10px; font-size: 13px; color: $gray-600; svg { color: #0088cc; flex-shrink: 0; margin-top: 1px; } }
+  &__telegram-cta-text { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; line-height: 1.5; }
+  &__telegram-cta-link { color: #0088cc; font-weight: 600; text-decoration: none; &:hover { text-decoration: underline; } }
+  &__telegram-cta-divider { color: $gray-300; }
+  &__telegram-cta-promo { font-weight: 600; color: $lime-dark; }
+  &__install-banner { display: flex; align-items: center; gap: 14px; padding: 14px 18px; background: $gray-50; border: 1.5px solid $gray-200; border-radius: 14px; margin-bottom: 28px; animation: slideUp 0.5s ease; }
+  &__install-banner-icon { flex-shrink: 0; color: $lime-dark; display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; background: $lime-light; border-radius: 12px; }
+  &__install-banner-text { flex: 1; strong { font-size: 14px; color: $gray-900; font-weight: 600; } span { font-size: 12px; color: $gray-500; } }
+  &__install-banner-btn { padding: 10px 20px; background: $lime; color: $black; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; @include transition; &:hover { background: $lime-hover; } }
 
-  &__text {
-    flex: 1;
-    min-width: 300px;
-    max-width: 540px;
-  }
-
-  &__title {
-    font-size: 52px;
-    font-weight: 800;
-    line-height: 1.15;
-    letter-spacing: -1.5px;
-    color: $gray-900;
-    margin-bottom: 20px;
-
-    @media (max-width: 768px) {
-      font-size: 36px;
-    }
-  }
-
-  &__title-accent {
-    color: $lime-dark;
-    position: relative;
-
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: 4px;
-      left: 0;
-      right: 0;
-      height: 8px;
-      background: $lime-light;
-      z-index: -1;
-      border-radius: 4px;
-    }
-  }
-
-  &__subtitle {
-    font-size: 18px;
-    color: $gray-500;
-    line-height: 1.7;
-    margin-bottom: 36px;
-    font-weight: 400;
-    max-width: 440px;
-  }
-
-  &__actions {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-  }
-
-  &__cta {
-    padding: 16px 28px;
-    background: $lime;
-    color: $black;
-    border: none;
-    border-radius: 12px;
-    font-size: 16px;
-    font-weight: 600;
-    font-family: $font;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    @include transition;
-
-    &:hover {
-      background: $lime-hover;
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba($lime, 0.35);
-    }
-
-    &:active {
-      transform: translateY(0);
-    }
-  }
-
-  &__cta-arrow {
-    font-size: 20px;
-    @include transition;
-    .hero__cta:hover & {
-      transform: translateX(4px);
-    }
-  }
-
-  &__link {
-    background: none;
-    border: none;
-    color: $gray-500;
-    font-size: 14px;
-    font-weight: 500;
-    font-family: $font;
-    cursor: pointer;
-    text-decoration: underline;
-    text-underline-offset: 4px;
-    @include transition;
-
-    &:hover {
-      color: $gray-900;
-    }
-  }
-
-  // ✅ Telegram CTA in Content
-  &__telegram-cta {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    margin-bottom: 28px;
-    padding: 10px 16px;
-    background: rgba(0, 136, 204, 0.05);
-    border: 1px solid rgba(0, 136, 204, 0.15);
-    border-radius: 10px;
-    font-size: 13px;
-    color: $gray-600;
-
-    svg {
-      color: #0088cc;
-      flex-shrink: 0;
-      margin-top: 1px;
-    }
-  }
-
-  &__telegram-cta-text {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 4px 6px;
-    line-height: 1.5;
-  }
-
-  &__telegram-cta-link {
-    color: #0088cc;
-    font-weight: 600;
-    text-decoration: none;
-    @include transition;
-
-    &:hover {
-      text-decoration: underline;
-      color: darken(#0088cc, 10%);
-    }
-  }
-
-  &__telegram-cta-divider {
-    color: $gray-300;
-  }
-
-  &__telegram-cta-promo {
-    font-weight: 600;
-    color: $lime-dark;
-  }
-
-  // ✅ Install Banner (in content)
-  &__install-banner {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 14px 18px;
-    background: $gray-50;
-    border: 1.5px solid $gray-200;
-    border-radius: 14px;
-    margin-bottom: 28px;
-    animation: slideUp 0.5s ease;
-  }
-
-  &__install-banner-icon {
-    flex-shrink: 0;
-    color: $lime-dark;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 48px;
-    height: 48px;
-    background: $lime-light;
-    border-radius: 12px;
-  }
-
-  &__install-banner-text {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-
-    strong {
-      font-size: 14px;
-      color: $gray-900;
-      font-weight: 600;
-    }
-
-    span {
-      font-size: 12px;
-      color: $gray-500;
-      font-weight: 400;
-    }
-  }
-
-  &__install-banner-btn {
-    padding: 10px 20px;
-    background: $lime;
-    color: $black;
-    border: none;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    font-family: $font;
-    cursor: pointer;
-    flex-shrink: 0;
-    @include transition;
-
-    &:hover {
-      background: $lime-hover;
-    }
-  }
-
-  // ============================================
   // Stats
-  // ============================================
-  &__stats {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-  }
+  &__stats { display: flex; align-items: center; gap: 20px; }
+  &__stat { display: flex; flex-direction: column; gap: 2px; }
+  &__stat-num { font-size: 20px; font-weight: 700; color: $gray-900; }
+  &__stat-lbl { font-size: 12px; color: $gray-400; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+  &__stat-divider { width: 1px; height: 32px; background: $gray-200; }
 
-  &__stat {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
+  // Visual Card
+  &__visual { flex: 1; min-width: 340px; display: flex; justify-content: center; align-items: center; }
+  &__card { width: 100%; max-width: 380px; background: $white; border-radius: 20px; border: 1px solid $gray-200; box-shadow: 0 20px 60px rgba(0,0,0,0.06); overflow: hidden; animation: float 6s ease-in-out infinite; }
+  &__card-header { display: flex; gap: 6px; padding: 14px 18px; border-bottom: 1px solid $gray-100; background: $gray-50; }
+  &__card-dot { width: 10px; height: 10px; border-radius: 50%; &--green { background: #84cc16; } &--lime { background: #a3e635; } &--gray { background: $gray-300; } }
+  &__card-body { padding: 20px 18px; display: flex; flex-direction: column; gap: 14px; min-height: 180px; background: $white; }
+  &__msg { display: flex; gap: 8px; align-items: flex-end; &--received { justify-content: flex-start; } &--sent { justify-content: flex-end; } }
+  &__msg-avatar { width: 28px; height: 28px; border-radius: 50%; background: $lime-light; color: $lime-dark; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+  &__msg-bubble { padding: 10px 14px; border-radius: 14px; font-size: 13px; line-height: 1.5; max-width: 75%; .hero__msg--received & { background: $gray-100; color: $gray-800; border-bottom-left-radius: 4px; } .hero__msg--sent & { background: $lime; color: $black; border-bottom-right-radius: 4px; } }
+  &__card-input { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-top: 1px solid $gray-100; background: $gray-50; }
+  &__card-input-text { font-size: 13px; color: $gray-400; }
+  &__card-input-send { width: 30px; height: 30px; border-radius: 50%; background: $lime; color: $black; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; }
 
-  &__stat-num {
-    font-size: 20px;
-    font-weight: 700;
-    color: $gray-900;
-  }
-
-  &__stat-lbl {
-    font-size: 12px;
-    color: $gray-400;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  &__stat-divider {
-    width: 1px;
-    height: 32px;
-    background: $gray-200;
-  }
-
-  // ============================================
-  // Visual / Chat Preview Card
-  // ============================================
-  &__visual {
-    flex: 1;
-    min-width: 340px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  &__card {
-    width: 100%;
-    max-width: 380px;
-    background: $white;
-    border-radius: 20px;
-    border: 1px solid $gray-200;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.06);
-    overflow: hidden;
-    animation: float 6s ease-in-out infinite;
-  }
-
-  &__card-header {
-    display: flex;
-    gap: 6px;
-    padding: 14px 18px;
-    border-bottom: 1px solid $gray-100;
-    background: $gray-50;
-  }
-
-  &__card-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-
-    &--green { background: #84cc16; }
-    &--lime { background: #a3e635; }
-    &--gray { background: $gray-300; }
-  }
-
-  &__card-body {
-    padding: 20px 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    min-height: 180px;
-    background: $white;
-  }
-
-  &__msg {
-    display: flex;
-    gap: 8px;
-    align-items: flex-end;
-
-    &--received { justify-content: flex-start; }
-    &--sent { justify-content: flex-end; }
-  }
-
-  &__msg-avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: $lime-light;
-    color: $lime-dark;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-
-  &__msg-bubble {
-    padding: 10px 14px;
-    border-radius: 14px;
-    font-size: 13px;
-    line-height: 1.5;
-    max-width: 75%;
-
-    .hero__msg--received & {
-      background: $gray-100;
-      color: $gray-800;
-      border-bottom-left-radius: 4px;
-    }
-
-    .hero__msg--sent & {
-      background: $lime;
-      color: $black;
-      border-bottom-right-radius: 4px;
-    }
-  }
-
-  &__card-input {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 18px;
-    border-top: 1px solid $gray-100;
-    background: $gray-50;
-  }
-
-  &__card-input-text {
-    font-size: 13px;
-    color: $gray-400;
-  }
-
-  &__card-input-send {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: $lime;
-    color: $black;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: 600;
-  }
-
-  // ============================================
   // Footer
-  // ============================================
-  &__footer {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-    padding: 24px 32px;
-    border-top: 1px solid $gray-100;
-    font-size: 13px;
-    color: $gray-400;
-    flex-shrink: 0;
-  }
-
-  &__footer-dot {
-    color: $gray-300;
-  }
-
-  &__footer-link {
-    background: none;
-    border: none;
-    color: $gray-500;
-    font-size: 13px;
-    font-family: $font;
-    cursor: pointer;
-    @include transition;
-
-    &:hover {
-      color: $gray-900;
-      text-decoration: underline;
-    }
-  }
-  // ============================================
-// Features Section
-// ============================================
-.hero__features {
-  padding: 80px 32px;
-  background: $gray-50;
-  text-align: center;
-}
-
-.hero__features-title {
-  font-size: 32px;
-  font-weight: 700;
-  color: $gray-900;
-  margin-bottom: 48px;
-  letter-spacing: -0.5px;
-}
-
-.hero__features-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 24px;
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
-.hero__feature-card {
-  background: $white;
-  padding: 32px 24px;
-  border-radius: 14px;
-  border: 1px solid $gray-100;
-  text-align: center;
-  @include transition;
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
-  }
-}
-
-.hero__feature-icon {
-  width: 48px;
-  height: 48px;
-  background: $lime-light;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 16px;
-  color: $lime-dark;
-}
-
-.hero__feature-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: $gray-900;
-  margin-bottom: 8px;
-}
-
-.hero__feature-desc {
-  font-size: 13px;
-  color: $gray-500;
-  line-height: 1.5;
-}
-
-// Responsive
-@media (max-width: 768px) {
-  .hero__features {
-    padding: 60px 20px;
-  }
-  .hero__features-title {
-    font-size: 24px;
-    margin-bottom: 32px;
-  }
-  .hero__features-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-  }
-}
+  &__footer { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 24px 32px; border-top: 1px solid $gray-100; font-size: 13px; color: $gray-400; flex-shrink: 0; }
+  &__footer-dot { color: $gray-300; }
+  &__footer-link { background: none; border: none; color: $gray-500; font-size: 13px; cursor: pointer; @include transition; &:hover { color: $gray-900; text-decoration: underline; } }
 }
 
 // ============================================
-// Animations (Global)
+// How It Works (outside .hero)
 // ============================================
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.8); }
-}
+.hero__how { padding: 80px 32px; background: $white; text-align: center; }
+.hero__how-title { font-size: 32px; font-weight: 700; color: $gray-900; margin-bottom: 60px; }
+.hero__how-steps { display: flex; justify-content: center; gap: 0; max-width: 1000px; margin: 0 auto; flex-wrap: wrap; }
+.hero__how-step { flex: 1; min-width: 200px; max-width: 250px; text-align: center; padding: 0 16px; }
+.hero__how-step-num { width: 32px; height: 32px; background: $lime; color: $black; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; margin: 0 auto 16px; }
+.hero__how-step-icon { width: 56px; height: 56px; background: $lime-light; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; color: $lime-dark; }
+.hero__how-step-title { font-size: 16px; font-weight: 600; color: $gray-900; margin-bottom: 8px; }
+.hero__how-step-desc { font-size: 13px; color: $gray-500; line-height: 1.5; }
 
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-}
+// ============================================
+// Phone Mockup (outside .hero)
+// ============================================
+.hero__mockup { display: flex; align-items: center; justify-content: center; gap: 80px; padding: 100px 32px; background: $gray-50; flex-wrap: wrap; }
+.hero__mockup-text { flex: 1; max-width: 440px; min-width: 280px; }
+.hero__mockup-title { font-size: 34px; font-weight: 700; color: $gray-900; margin-bottom: 16px; }
+.hero__mockup-desc { font-size: 16px; color: $gray-500; line-height: 1.7; margin-bottom: 32px; }
+.hero__mockup-badges { display: flex; flex-wrap: wrap; gap: 10px; }
+.hero__mockup-badge { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: $white; border: 1px solid $gray-200; border-radius: 20px; font-size: 12px; font-weight: 500; color: $gray-600; @include transition; &:hover { border-color: $lime; } }
+.hero__mockup-badge-icon { color: $lime; display: flex; }
+.hero__mockup-phone { flex-shrink: 0; }
+.hero__mockup-phone-frame { width: 290px; height: 580px; background: $gray-900; border-radius: 44px; padding: 14px; box-shadow: 0 0 0 2px $gray-800, 0 0 0 4px $gray-700, 0 20px 60px rgba(0,0,0,0.3); position: relative; &::before { content: ''; position: absolute; right: -3px; top: 120px; width: 3px; height: 60px; background: $gray-700; border-radius: 0 3px 3px 0; } }
+.hero__mockup-phone-screen { background: $white; border-radius: 32px; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+.hero__mockup-phone-status { display: flex; justify-content: space-between; padding: 8px 20px; font-size: 10px; font-weight: 600; }
+.hero__mockup-phone-header { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid $gray-100; }
+.hero__mockup-phone-back { color: $lime; font-size: 16px; font-weight: 600; }
+.hero__mockup-phone-avatar { width: 32px; height: 32px; border-radius: 50%; background: $lime-light; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: $lime-dark; }
+.hero__mockup-phone-user { flex: 1; }
+.hero__mockup-phone-name { font-size: 13px; font-weight: 600; }
+.hero__mockup-phone-location { font-size: 10px; color: $gray-500; }
+.hero__mockup-phone-dot { width: 6px; height: 6px; border-radius: 50%; background: $lime; }
+.hero__mockup-phone-chat { flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: $gray-50; }
+.hero__mockup-phone-msg { padding: 8px 12px; border-radius: 16px; font-size: 12px; max-width: 78%; line-height: 1.4; &--received { background: $white; color: $gray-800; align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid $gray-200; } &--sent { background: $lime; color: $black; align-self: flex-end; border-bottom-right-radius: 4px; } }
+.hero__mockup-phone-typing { display: flex; gap: 3px; padding: 8px 16px; align-self: flex-start; span { width: 5px; height: 5px; background: $gray-400; border-radius: 50%; animation: typingBounce 1.4s infinite; &:nth-child(2) { animation-delay: 0.2s; } &:nth-child(3) { animation-delay: 0.4s; } } }
+.hero__mockup-phone-input { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid $gray-100; background: $white; }
+.hero__mockup-phone-input-field { flex: 1; padding: 8px 14px; background: $gray-50; border-radius: 20px; font-size: 11px; color: $gray-400; border: 1px solid $gray-200; }
+.hero__mockup-phone-input-send { width: 32px; height: 32px; border-radius: 50%; background: $lime; color: $black; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+.hero__mockup-phone-home { width: 100px; height: 4px; background: $gray-300; border-radius: 2px; margin: 0 auto; }
 
-@keyframes pulse-install {
-  0%, 100% { box-shadow: 0 0 0 0 rgba($lime, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba($lime, 0); }
-}
+// ============================================
+// Features Section (outside .hero)
+// ============================================
+.hero__features { padding: 80px 32px; background: $gray-50; text-align: center; }
+.hero__features-title { font-size: 32px; font-weight: 700; color: $gray-900; margin-bottom: 48px; }
+.hero__features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; max-width: 1000px; margin: 0 auto; }
+.hero__feature-card { background: $white; padding: 32px 24px; border-radius: 14px; border: 1px solid $gray-100; text-align: center; @include transition; &:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.06); } }
+.hero__feature-icon { width: 48px; height: 48px; background: $lime-light; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; color: $lime-dark; }
+.hero__feature-name { font-size: 15px; font-weight: 600; color: $gray-900; margin-bottom: 8px; }
+.hero__feature-desc { font-size: 13px; color: $gray-500; line-height: 1.5; }
 
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+// ============================================
+// Animations
+// ============================================
+@keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
+@keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+@keyframes pulse-install { 0%, 100% { box-shadow: 0 0 0 0 rgba($lime, 0.4); } 50% { box-shadow: 0 0 0 8px rgba($lime, 0); } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes typingBounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-4px); opacity: 1; } }
 
 // ============================================
 // Responsive
 // ============================================
 @media (max-width: 768px) {
   .hero {
-    &__content {
-      flex-direction: column-reverse;
-      padding: 40px 20px;
-      gap: 40px;
-    }
-
-    &__visual {
-      min-width: 100%;
-    }
-
-    &__card {
-      max-width: 100%;
-    }
-
-    &__nav {
-      padding: 16px 20px;
-    }
-
-    &__nav-right {
-      gap: 8px;
-    }
-
-    &__telegram-link {
-      font-size: 11px;
-      padding: 6px 12px;
-
-      span {
-        display: none; // Hide text on mobile, show only icon
-      }
-    }
-
-    &__install-btn {
-      font-size: 11px;
-      padding: 6px 12px;
-    }
-
-    &__nav-btn {
-      font-size: 12px;
-      padding: 8px 14px;
-    }
+    &__content { flex-direction: column-reverse; padding: 40px 20px; gap: 40px; }
+    &__title { font-size: 36px; }
+    &__visual { min-width: 100%; }
+    &__card { max-width: 100%; }
+    &__nav { padding: 16px 20px; }
+    &__nav-right { gap: 8px; }
+    &__telegram-link { span { display: none; } }
   }
+  .hero__how { padding: 60px 20px; }
+  .hero__how-title { font-size: 24px; margin-bottom: 40px; }
+  .hero__how-steps { gap: 24px; }
+  .hero__mockup { flex-direction: column; gap: 40px; padding: 60px 20px; text-align: center; }
+  .hero__mockup-text { text-align: center; }
+  .hero__mockup-badges { justify-content: center; }
+  .hero__mockup-phone-frame { width: 260px; height: 520px; }
+  .hero__features { padding: 60px 20px; }
+  .hero__features-title { font-size: 24px; }
+  .hero__features-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
 }
