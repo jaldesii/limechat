@@ -326,20 +326,26 @@ io.on("connection", (socket) => {
             if (expireTimeout) clearTimeout(expireTimeout); expireTimeout = null;
             broadcastAdminUpdate();
         });
-        socket.on('adminAnnouncement', (data) => {
-            if (expireTimeout) { clearTimeout(expireTimeout); expireTimeout = null; }
-            const duration = data.duration || 5;
-            const expiresAt = duration > 0 ? new Date(Date.now() + duration * 60 * 1000).toISOString() : null;
-            currentAnnouncement = { text: data.text, time: new Date().toISOString(), duration, expiresAt };
-            socket.broadcast.emit('announcement', currentAnnouncement);
-            if (duration > 0) {
-                expireTimeout = setTimeout(() => {
-                    currentAnnouncement = null; expireTimeout = null;
-                    io.emit('clearAnnouncement'); broadcastAdminUpdate();
-                }, duration * 60 * 1000);
-            }
+       socket.on('adminAnnouncement', (data) => {
+    if (expireTimeout) { clearTimeout(expireTimeout); expireTimeout = null; }
+    const duration = data.duration || 5;
+    const expiresAt = duration > 0 ? new Date(Date.now() + duration * 60 * 1000).toISOString() : null;
+    currentAnnouncement = { text: data.text, time: new Date().toISOString(), duration, expiresAt };
+    
+    // ❌ OLD: socket.broadcast.emit('announcement', currentAnnouncement);
+    // ✅ NEW: Send to ALL connected clients (including those in chat rooms)
+    io.emit('announcement', currentAnnouncement);
+    
+    if (duration > 0) {
+        expireTimeout = setTimeout(() => {
+            currentAnnouncement = null; 
+            expireTimeout = null;
+            io.emit('clearAnnouncement'); 
             broadcastAdminUpdate();
-        });
+        }, duration * 60 * 1000);
+    }
+    broadcastAdminUpdate();
+});
         socket.on('adminClearAnnouncement', () => {
             if (expireTimeout) { clearTimeout(expireTimeout); expireTimeout = null; }
             currentAnnouncement = null;
