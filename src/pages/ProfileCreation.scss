@@ -27,13 +27,13 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
 
   &__card {
     width: 100%;
-    max-width: 400px;
+    max-width: 440px;
     background: var(--bg-secondary, #ffffff);
     border-radius: 20px;
     padding: 40px 32px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
     border: 1px solid var(--border-primary, #e4e4e7);
-    position: relative; // ✅ Added for home button positioning
+    position: relative;
   }
 
   // ✅ Home Button
@@ -169,7 +169,7 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
     }
   }
 
-  // Chat Mode Selection
+  // ✅ Chat Mode Selection - 3 Cards
   &__chat-modes {
     display: flex;
     flex-direction: column;
@@ -181,37 +181,85 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 14px 18px;
-    border-radius: 12px;
+    padding: 16px 18px;
+    border-radius: 14px;
     border: 2px solid var(--border-primary, #e4e4e7);
     background: var(--bg-secondary, #ffffff);
     cursor: pointer;
     @include transition;
     text-align: left;
     font-family: $font;
+    position: relative;
+    overflow: hidden;
 
     &:hover:not(:disabled) {
-      border-color: var(--lime, #84cc16);
-      background: var(--lime-light, #ecfccb);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
     }
 
-    &:disabled { opacity: 0.5; cursor: not-allowed; }
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
 
-    &--group:hover:not(:disabled) {
-      border-color: #fbbf24;
-      background: var(--yellow-bg, #fef3c7);
+    &:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    // 1v1 Chat
+    &--1v1 {
+      &:hover:not(:disabled) {
+        border-color: var(--lime, #84cc16);
+        background: var(--lime-light, #ecfccb);
+      }
+    }
+
+    // Voice Call
+    &--call {
+      &:hover:not(:disabled) {
+        border-color: #3b82f6;
+        background: #eff6ff;
+      }
+    }
+
+    // Group Chat
+    &--group {
+      &:hover:not(:disabled) {
+        border-color: #fbbf24;
+        background: #fefce8;
+      }
     }
   }
 
-  &__mode-icon { font-size: 32px; flex-shrink: 0; }
+  &__mode-icon { 
+    font-size: 36px; 
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary, #f4f4f5);
+    border-radius: 12px;
+  }
 
   &__mode-text {
     display: flex;
     flex-direction: column;
     gap: 2px;
+    flex: 1;
 
     strong { font-size: 15px; color: var(--text-primary, #18181b); }
     small { font-size: 12px; color: var(--text-tertiary, #71717a); }
+  }
+
+  &__mode-arrow {
+    font-size: 18px;
+    color: var(--text-muted, #a1a1aa);
+    flex-shrink: 0;
+    @include transition;
+    
+    .profile-creation__mode-btn:hover:not(:disabled) & {
+      transform: translateX(4px);
+      color: var(--text-primary, #18181b);
+    }
   }
 
   &__start-btn {
@@ -277,4 +325,32 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
 @keyframes slideDown {
   from { opacity: 0; transform: translateY(-10px); max-height: 0; }
   to { opacity: 1; transform: translateY(0); max-height: 150px; }
+}
+
+// ============================================
+// RESPONSIVE
+// ============================================
+@media (max-width: 500px) {
+  .profile-creation {
+    padding: 16px;
+    
+    &__card {
+      padding: 32px 20px;
+    }
+    
+    &__mode-btn {
+      padding: 14px;
+      gap: 10px;
+    }
+    
+    &__mode-icon {
+      font-size: 28px;
+      width: 40px;
+      height: 40px;
+    }
+    
+    &__mode-text strong {
+      font-size: 14px;
+    }
+  }
 }

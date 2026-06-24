@@ -25,7 +25,7 @@ app.get('/health', (req, res) => {
     status: 'ok', 
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
-    message: 'LimeChat Server is running'
+    message: 'CallChat Server is running'
   });
 });
 
@@ -34,7 +34,7 @@ app.get('/health', (req, res) => {
 // ============================================
 app.get('/api', (req, res) => {
   res.status(200).json({ 
-    name: 'LimeChat API',
+    name: 'CallChat API',
     version: '1.0.0',
     status: 'online'
   });
@@ -52,6 +52,9 @@ let expireTimeout = null;
 // ✅ Group Chat
 let groups = [];
 
+// ✅ Voice Call Rooms
+const callRooms = new Map();
+
 // ✅ Anti-Spam: Rate limiting
 const messageTimestamps = {};
 const userMessageHistory = {};
@@ -60,6 +63,11 @@ const suspiciousUsers = new Set();
 // ✅ Ban System
 const bannedUsers = new Set();
 const bannedIPs = new Set();
+
+// ✅ Helper: Generate room code
+function generateRoomCode() {
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
 
 setInterval(() => {
     const now = Date.now();
@@ -80,6 +88,15 @@ setInterval(() => {
         return false;
     });
     groups = groups.filter(g => g.users.length > 0);
+    
+    // ✅ Clean up stale call rooms (older than 30 minutes)
+    callRooms.forEach((room, roomId) => {
+        if (now - room.createdAt > 30 * 60 * 1000) {
+            callRooms.delete(roomId);
+            console.log(`🗑️ Stale call room deleted: ${roomId}`);
+        }
+    });
+    
     broadcastAdminUpdate();
 }, 10000);
 
@@ -94,6 +111,7 @@ app.get("/status", (req, res) => res.json({
     waitingNow: allUsers.filter(u => u.status === 'waiting').length,
     announcement: currentAnnouncement,
     groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length })),
+    callRooms: callRooms.size,
     suspiciousUsers: suspiciousUsers.size,
     bannedCount: bannedUsers.size
 }));
@@ -151,6 +169,74 @@ io.on("connection", (socket) => {
     const isAdmin = socket.handshake.query.role === 'admin';
     
     // ============================================
+    // ✅ VOICE CALL HANDLERS (For regular users)
+    // ============================================
+    if (!isAdmin) {
+        // Create call room
+        socket.on("createRoom", (callback) => {
+            const roomId = generateRoomCode();
+            callRooms.set(roomId, {
+                creator: socket.id,
+                participants: [socket.id],
+                createdAt: Date.now()
+            });
+            socket.join(roomId);
+            callback({ roomId });
+            console.log(`📞 Call room created: ${roomId} by ${socket.id}`);
+        });
+
+        // Join call room
+        socket.on("joinRoom", (roomId, callback) => {
+            const room = callRooms.get(roomId);
+            
+            if (!room) {
+                callback({ error: "Room not found or expired" });
+                return;
+            }
+            
+            if (room.participants.length >= 2) {
+                callback({ error: "Room is full (max 2 people)" });
+                return;
+            }
+            
+            // Prevent joining own room
+            if (room.participants.includes(socket.id)) {
+                callback({ error: "You cannot join your own room" });
+                return;
+            }
+            
+            room.participants.push(socket.id);
+            socket.join(roomId);
+            
+            // Notify creator that someone joined
+            socket.to(roomId).emit("userJoined", { userId: socket.id });
+            
+            callback({ success: true, roomId });
+            console.log(`👋 User ${socket.id} joined call: ${roomId}`);
+        });
+
+        // End call
+        socket.on("endCall", (roomId) => {
+            socket.to(roomId).emit("callEnded");
+            cleanupCallRoom(roomId, socket);
+            console.log(`🔴 Call ended: ${roomId}`);
+        });
+
+        // WebRTC Signaling for calls
+        socket.on("offer", (data) => {
+            socket.to(data.roomId).emit("offer", data);
+        });
+
+        socket.on("answer", (data) => {
+            socket.to(data.roomId).emit("answer", data);
+        });
+
+        socket.on("iceCandidate", (data) => {
+            socket.to(data.roomId).emit("iceCandidate", data);
+        });
+    }
+    
+    // ============================================
     // ADMIN
     // ============================================
     if (isAdmin) {
@@ -164,6 +250,7 @@ io.on("connection", (socket) => {
         socket.on('adminReset', () => {
             allUsers = []; waitingUsers = []; activeRooms.clear(); matchedUsers.clear();
             uniqueVisitors.clear(); totalMatches = 0; currentAnnouncement = null; groups = [];
+            callRooms.clear();
             suspiciousUsers.clear();
             if (expireTimeout) clearTimeout(expireTimeout); expireTimeout = null;
             broadcastAdminUpdate();
@@ -206,7 +293,7 @@ io.on("connection", (socket) => {
                         bannedIPs.add(ip);
                         console.log(`🚫 IP banned: ${ip}`);
                     }
-                    targetSocket.emit('banned', 'You have been permanently banned from LimeChat.');
+                    targetSocket.emit('banned', 'You have been permanently banned from CallChat.');
                     targetSocket.disconnect(true);
                 }
                 
@@ -215,6 +302,12 @@ io.on("connection", (socket) => {
                 if (targetUser) {
                     matchedUsers.delete(targetUser.socketId);
                     leaveGroup(targetUser.socketId);
+                    // Remove from call rooms
+                    callRooms.forEach((room, roomId) => {
+                        if (room.participants.includes(targetUser.socketId)) {
+                            callRooms.delete(roomId);
+                        }
+                    });
                 }
                 allUsers = allUsers.filter(u => u.clientId !== targetId);
                 
@@ -252,7 +345,7 @@ io.on("connection", (socket) => {
     // ✅ BAN CHECK — clientId + IP + localStorage
     if (bannedUsers.has(clientId) || bannedIPs.has(clientIP) || storedBanned) {
         console.log(`🚫 Banned user rejected: ${clientId} (IP: ${clientIP})`);
-        socket.emit('banned', 'You have been permanently banned from LimeChat.');
+        socket.emit('banned', 'You have been permanently banned from CallChat.');
         socket.disconnect(true);
         return;
     }
@@ -414,6 +507,16 @@ io.on("connection", (socket) => {
         waitingUsers = waitingUsers.filter(u => u.socketId !== socket.id); matchedUsers.delete(socket.id);
         updateUser(socket.id, { status: 'disconnected', lastActive: new Date().toISOString() });
         leaveGroup(socket.id);
+        
+        // ✅ Clean up call rooms on disconnect
+        callRooms.forEach((room, roomId) => {
+            if (room.participants.includes(socket.id)) {
+                socket.to(roomId).emit("userLeft");
+                callRooms.delete(roomId);
+                console.log(`🗑️ Call room cleaned: ${roomId}`);
+            }
+        });
+        
         activeRooms.forEach((room, roomId) => { 
             const u = room.users.find(u => u.socketId === socket.id); 
             if (u) { 
@@ -429,11 +532,20 @@ io.on("connection", (socket) => {
     });
 });
 
+// ✅ Helper: Clean up call room
+function cleanupCallRoom(roomId, socket) {
+    const room = callRooms.get(roomId);
+    if (room) {
+        callRooms.delete(roomId);
+        socket.leave(roomId);
+    }
+}
+
 function getAdminSockets() { const a = []; io.sockets.sockets.forEach(s => { if (s.handshake.query.role === 'admin') a.push(s.id); }); return a; }
 function broadcastToAdmins(e, d) { getAdminSockets().forEach(id => io.to(id).emit(e, d)); }
 function updateUser(sid, upd) { const i = allUsers.findIndex(u => u.socketId === sid); if (i !== -1) allUsers[i] = { ...allUsers[i], ...upd }; }
 function getActiveChatsList() { const c = []; activeRooms.forEach((r, rid) => { if (r.users.length >= 2) c.push({ roomId: rid, user1: r.users[0]?.name || '?', user2: r.users[1]?.name || '?', startedAt: new Date(r.createdAt).toISOString() }); }); return c; }
-function buildAdminData() { return { users: allUsers.filter(u => (u.status === 'connected' && u.roomId) || u.status === 'waiting' || (Date.now() - new Date(u.lastActive).getTime()) < 60000), activeChats: getActiveChatsList(), totalVisitors: uniqueVisitors.size, totalMatches, activeNow: allUsers.filter(u => u.status === 'connected' && u.roomId).length, waitingNow: allUsers.filter(u => u.status === 'waiting').length, announcement: currentAnnouncement, groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length })), suspiciousUsers: suspiciousUsers.size, bannedCount: bannedUsers.size }; }
+function buildAdminData() { return { users: allUsers.filter(u => (u.status === 'connected' && u.roomId) || u.status === 'waiting' || (Date.now() - new Date(u.lastActive).getTime()) < 60000), activeChats: getActiveChatsList(), totalVisitors: uniqueVisitors.size, totalMatches, activeNow: allUsers.filter(u => u.status === 'connected' && u.roomId).length, waitingNow: allUsers.filter(u => u.status === 'waiting').length, announcement: currentAnnouncement, groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length })), callRooms: callRooms.size, suspiciousUsers: suspiciousUsers.size, bannedCount: bannedUsers.size }; }
 function broadcastAdminUpdate() { broadcastToAdmins('adminUpdate', buildAdminData()); }
 
 // ============================================
@@ -466,8 +578,9 @@ process.on('unhandledRejection', (reason) => {
 // ============================================
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🚀 CallChat Server running on port ${PORT}`);
     console.log(`👥 Group chat enabled`);
+    console.log(`📞 Voice call enabled`);
     console.log(`✏️ Message edit/delete enabled`);
     console.log(`📝 Group name edit enabled`);
     console.log(`🛡️ Anti-spam protection enabled`);

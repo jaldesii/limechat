@@ -44,7 +44,11 @@ export default function ProfileCreation() {
   const startChat = (mode) => {
     if (!name || !location) return;
     localStorage.setItem("user", JSON.stringify({ name, location }));
-    if (mode === '1v1') {
+    
+    if (mode === 'call') {
+      // ✅ Navigate to waiting room with call mode
+      navigate("/waiting?mode=call");
+    } else if (mode === '1v1') {
       navigate("/waiting");
     } else {
       navigate("/waiting?mode=group");
@@ -73,12 +77,12 @@ export default function ProfileCreation() {
         )}
         <div className="profile-creation__brand">
           <div className="profile-creation__icon">
-            <img src="/icon.png" alt="LimeChat" className="profile-creation__icon-img" />
+            <img src="/icon.png" alt="CallChat" className="profile-creation__icon-img" />
           </div>
-          <span className="profile-creation__brand-name">LimeChat</span>
+          <span className="profile-creation__brand-name">CallChat</span>
         </div>
-        <h1 className="profile-creation__title">Find Someone to Chat</h1>
-        <p className="profile-creation__subtitle">Enter your details and choose chat mode</p>
+        <h1 className="profile-creation__title">Start Connecting</h1>
+        <p className="profile-creation__subtitle">Enter your details and choose a mode</p>
         <div className="profile-creation__form">
           <div className="profile-creation__input-group">
             <label className="profile-creation__label">Your Name</label>
@@ -89,21 +93,54 @@ export default function ProfileCreation() {
             <input className="profile-creation__input" placeholder="Enter your location" value={location} onChange={(e) => setLocation(e.target.value)} maxLength={30} />
           </div>
           
-          {/* ✅ Chat Mode Selection */}
+          {/* ✅ Chat Mode Selection - 3 Options */}
           <div className="profile-creation__chat-modes">
-            <button className="profile-creation__mode-btn profile-creation__mode-btn--1v1" onClick={() => startChat('1v1')} disabled={!name || !location}>
-              <span className="profile-creation__mode-icon">👤</span>
+            {/* 1v1 Chat */}
+            <button 
+              className="profile-creation__mode-btn profile-creation__mode-btn--1v1" 
+              onClick={() => startChat('1v1')} 
+              disabled={!name || !location}
+            >
+              <span className="profile-creation__mode-icon">
+                <span className="profile-creation__mode-emoji">💬</span>
+              </span>
               <span className="profile-creation__mode-text">
                 <strong>1v1 Chat</strong>
                 <small>Random match with one person</small>
               </span>
+              <span className="profile-creation__mode-arrow">→</span>
             </button>
-            <button className="profile-creation__mode-btn profile-creation__mode-btn--group" onClick={() => startChat('group')} disabled={!name || !location}>
-              <span className="profile-creation__mode-icon">👥</span>
+            
+            {/* Voice Call */}
+            <button 
+              className="profile-creation__mode-btn profile-creation__mode-btn--call" 
+              onClick={() => startChat('call')} 
+              disabled={!name || !location}
+            >
+              <span className="profile-creation__mode-icon">
+                <span className="profile-creation__mode-emoji">📞</span>
+              </span>
+              <span className="profile-creation__mode-text">
+                <strong>Voice Call</strong>
+                <small>Create or join a voice call room</small>
+              </span>
+              <span className="profile-creation__mode-arrow">→</span>
+            </button>
+            
+            {/* Group Chat */}
+            <button 
+              className="profile-creation__mode-btn profile-creation__mode-btn--group" 
+              onClick={() => startChat('group')} 
+              disabled={!name || !location}
+            >
+              <span className="profile-creation__mode-icon">
+                <span className="profile-creation__mode-emoji">👥</span>
+              </span>
               <span className="profile-creation__mode-text">
                 <strong>Group Chat</strong>
                 <small>Join or create a group (max 10)</small>
               </span>
+              <span className="profile-creation__mode-arrow">→</span>
             </button>
           </div>
         </div>

@@ -47,8 +47,73 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
   &__stat-num { font-size: 20px; font-weight: 700; color: var(--text-primary, $gray-900); }
   &__stat-lbl { font-size: 12px; color: var(--text-muted, $gray-400); font-weight: 500; text-transform: uppercase; }
   &__stat-divider { width: 1px; height: 32px; background: var(--border-primary, $gray-200); }
-  &__visual { flex: 1; min-width: 340px; display: flex; justify-content: center; align-items: center; }
-  &__card { width: 100%; max-width: 380px; background: var(--bg-secondary, $white); border-radius: 20px; border: 1px solid var(--border-primary, $gray-200); box-shadow: 0 20px 60px rgba(0,0,0,0.06); overflow: hidden; animation: float 6s ease-in-out infinite; }
+  
+  // ============================================
+  // ✅ DUAL PHONE PREVIEW
+  // ============================================
+  &__visual {
+    flex: 1;
+    min-width: 500px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    @media (max-width: 768px) {
+      min-width: 100%;
+    }
+  }
+
+  &__phones {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    justify-content: center;
+    
+    @media (max-width: 600px) {
+      gap: 40px 12px;
+      flex-direction: column;
+    }
+  }
+
+  &__card {
+    width: 100%;
+    max-width: 260px;
+    background: var(--bg-secondary, $white);
+    border-radius: 20px;
+    border: 1px solid var(--border-primary, $gray-200);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+    overflow: hidden;
+    position: relative;
+    
+    &--chat {
+      animation: float 6s ease-in-out infinite;
+    }
+    
+    &--call {
+      animation: float 6s ease-in-out 1s infinite;
+    }
+    
+    @media (max-width: 600px) {
+      max-width: 240px;
+    }
+  }
+
+  &__card-label {
+    position: absolute;
+    bottom: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted, $gray-400);
+    white-space: nowrap;
+    background: var(--bg-primary, $white);
+    padding: 4px 10px;
+    border-radius: 6px;
+  }
+
   &__card-header { display: flex; gap: 6px; padding: 14px 18px; border-bottom: 1px solid var(--border-secondary, $gray-100); background: var(--bg-tertiary, $gray-50); }
   &__card-dot { width: 10px; height: 10px; border-radius: 50%; &--green { background: #84cc16; } &--lime { background: #a3e635; } &--gray { background: $gray-300; } }
   &__card-body { padding: 20px 18px; display: flex; flex-direction: column; gap: 14px; min-height: 180px; }
@@ -58,6 +123,133 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
   &__card-input { display: flex; justify-content: space-between; padding: 12px 18px; border-top: 1px solid var(--border-secondary, $gray-100); background: var(--bg-tertiary, $gray-50); }
   &__card-input-text { font-size: 13px; color: var(--text-muted, $gray-400); }
   &__card-input-send { width: 30px; height: 30px; border-radius: 50%; background: $lime; color: $black; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; }
+
+  // ============================================
+  // VOICE CALL PREVIEW
+  // ============================================
+  &__call-screen {
+    padding: 30px 20px;
+    text-align: center;
+    background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+    min-height: 320px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    position: relative;
+    overflow: hidden;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+    }
+  }
+
+  &__call-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, $lime, $lime-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 700;
+    color: $black;
+    position: relative;
+    z-index: 1;
+    box-shadow: 0 0 0 6px rgba($lime, 0.2);
+    animation: pulse-avatar 2s ease-in-out infinite;
+  }
+
+  &__call-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    position: relative;
+    z-index: 1;
+  }
+
+  &__call-status {
+    font-size: 12px;
+    color: $lime;
+    font-weight: 500;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__call-audio-waves {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 30px;
+    position: relative;
+    z-index: 1;
+  }
+
+  &__call-wave {
+    width: 3px;
+    height: 10px;
+    background: $lime;
+    border-radius: 2px;
+    animation: wave 1.2s ease-in-out infinite;
+    
+    &:nth-child(1) { animation-delay: 0s; }
+    &:nth-child(2) { animation-delay: 0.2s; }
+    &:nth-child(3) { animation-delay: 0.4s; }
+    &:nth-child(4) { animation-delay: 0.6s; }
+    &:nth-child(5) { animation-delay: 0.8s; }
+  }
+
+  &__call-actions {
+    display: flex;
+    gap: 16px;
+    position: relative;
+    z-index: 1;
+    margin-top: 8px;
+  }
+
+  &__call-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    
+    &--mic {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      &:hover { background: rgba(255,255,255,0.25); }
+    }
+    
+    &--speaker {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      &:hover { background: rgba(255,255,255,0.25); }
+    }
+    
+    &--end {
+      background: #ef4444;
+      color: #fff;
+      width: 52px;
+      height: 52px;
+      &:hover { background: #dc2626; transform: scale(1.1); }
+    }
+  }
+  
   &__footer { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 24px 32px; border-top: 1px solid var(--border-secondary, $gray-100); font-size: 13px; color: var(--text-muted, $gray-400); }
   &__footer-dot { color: $gray-300; }
   &__footer-link { background: none; border: none; color: var(--text-tertiary, $gray-500); font-size: 13px; cursor: pointer; &:hover { color: var(--text-primary, $gray-900); } }
@@ -79,6 +271,7 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
       border-color: $lime;
     }
   }
+
 }
 
 // ============================================
@@ -149,14 +342,10 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
   max-width: 500px; width: 100%; position: relative;
   box-shadow: 0 20px 60px rgba(0,0,0,0.2);
   animation: modalIn 0.4s ease; text-align: center;
-  max-height: 90vh;
-  overflow-y: auto;
-  margin: auto;
+  max-height: 90vh; overflow-y: auto; margin: auto;
 
   @media (max-width: 500px) {
-    padding: 24px 16px;
-    border-radius: 16px;
-    max-height: 85vh;
+    padding: 24px 16px; border-radius: 16px; max-height: 85vh;
   }
 }
 
@@ -170,8 +359,7 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
 .support-modal__icon { font-size: 40px; margin-bottom: 8px; }
 
 .support-modal__title {
-  font-size: 22px; font-weight: 700; color: var(--text-primary, $gray-900);
-  margin-bottom: 6px;
+  font-size: 22px; font-weight: 700; color: var(--text-primary, $gray-900); margin-bottom: 6px;
   @media (max-width: 500px) { font-size: 18px; }
 }
 
@@ -205,7 +393,7 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
   display: inline-flex; align-items: center; gap: 5px;
   padding: 7px 14px; border-radius: 8px; font-size: 11px;
   font-weight: 600; text-decoration: none; @include transition;
-  &--telegram { background: #0088cc; color: $white; &:hover { background: darken(#0088cc, 8%); } }
+  &--telegram { background: #0088cc; color: $white; &:hover { background: #006699; } }
   &--announce { background: $lime; color: $black; &:hover { background: $lime-hover; } }
   @media (max-width: 500px) { padding: 6px 12px; font-size: 10px; }
 }
@@ -238,6 +426,8 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
 @keyframes pulse-install { 0%, 100% { box-shadow: 0 0 0 0 rgba($lime, 0.4); } 50% { box-shadow: 0 0 0 8px rgba($lime, 0); } }
 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes typingBounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-4px); opacity: 1; } }
+@keyframes pulse-avatar { 0%, 100% { box-shadow: 0 0 0 6px rgba($lime, 0.2); } 50% { box-shadow: 0 0 0 16px rgba($lime, 0.05); } }
+@keyframes wave { 0%, 100% { height: 8px; } 50% { height: 28px; } }
 
 // ============================================
 // RESPONSIVE
@@ -247,10 +437,11 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
     &__content { flex-direction: column-reverse; padding: 40px 20px; gap: 40px; }
     &__title { font-size: 36px; }
     &__visual { min-width: 100%; }
-    &__card { max-width: 100%; }
+    &__card { max-width: 240px; }
     &__nav { padding: 16px 20px; }
     &__nav-right { gap: 8px; }
     &__telegram-link { span { display: none; } }
+    &__phones { gap: 40px 12px; flex-direction: row; flex-wrap: wrap; justify-content: center; }
   }
   .hero__how { padding: 60px 20px; }
   .hero__how-title { font-size: 24px; margin-bottom: 40px; }
@@ -262,4 +453,11 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
   .hero__features { padding: 60px 20px; }
   .hero__features-title { font-size: 24px; }
   .hero__features-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+}
+
+@media (max-width: 400px) {
+  .hero {
+    &__phones { flex-direction: column; gap: 40px; }
+    &__card { max-width: 220px; }
+  }
 }

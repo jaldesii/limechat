@@ -6,11 +6,14 @@ import "./WaitingRoom.scss";
 export default function WaitingRoom() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const chatMode = searchParams.get('mode') || '1v1'; // '1v1' or 'group'
+  const chatMode = searchParams.get('mode') || '1v1'; // '1v1', 'group', or 'call'
   
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [searchTime, setSearchTime] = useState(0);
   const [groups, setGroups] = useState([]);
+  const [roomCode, setRoomCode] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState('');
   const hasLeftRef = useRef(false);
 
   useEffect(() => {
@@ -21,12 +24,17 @@ export default function WaitingRoom() {
       const user = JSON.parse(userString);
       if (!user.name || !user.location) { navigate('/'); return; }
 
+      if (chatMode === 'call') {
+        // ✅ Voice Call Mode - No socket listeners needed here
+        // User will create or join a call room manually
+        return;
+      }
+
       if (chatMode === 'group') {
         // Request group list
         socket.emit('getGroups');
         socket.on('groupList', (data) => setGroups(data.groups || []));
         socket.on('groupJoined', (data) => {
-          // ✅ Set flag na group chat ito
           sessionStorage.setItem('isGroupChat', 'true');
           localStorage.setItem('roomId', data.roomId);
           localStorage.setItem('partner', JSON.stringify({ name: 'Group Chat', location: `${data.userCount} users` }));
@@ -83,12 +91,46 @@ export default function WaitingRoom() {
     socket.emit('createGroup', { user });
   };
 
+  // ✅ Voice Call: Create Room
+  const createCallRoom = () => {
+    setIsCreating(true);
+    setError('');
+    
+    socket.emit("createRoom", (response) => {
+      setIsCreating(false);
+      if (response.roomId) {
+        hasLeftRef.current = true;
+        navigate(`/call/${response.roomId}?host=true`);
+      } else {
+        setError('Failed to create room. Try again.');
+      }
+    });
+  };
+
+  // ✅ Voice Call: Join Room
+  const joinCallRoom = () => {
+    if (!roomCode.trim()) {
+      setError('Enter a room code');
+      return;
+    }
+    
+    setError('');
+    socket.emit("joinRoom", roomCode.trim().toUpperCase(), (response) => {
+      if (response.error) {
+        setError(response.error);
+      } else {
+        hasLeftRef.current = true;
+        navigate(`/call/${roomCode.trim().toUpperCase()}`);
+      }
+    });
+  };
+
   const leaveQueue = () => {
     if (hasLeftRef.current) return;
     hasLeftRef.current = true;
-    socket.emit('leaveQueue');
-    // ✅ FIXED: Don't delete user data - keep it for profile page
-    // localStorage.removeItem('user'); // ❌ REMOVED THIS LINE
+    if (chatMode !== 'call') {
+      socket.emit('leaveQueue');
+    }
     navigate('/profile', { replace: true });
   };
 
@@ -97,6 +139,74 @@ export default function WaitingRoom() {
     window.history.pushState(null, '', window.location.href); 
   };
 
+  // ============================================
+  // RENDER: Voice Call Mode
+  // ============================================
+  if (chatMode === 'call') {
+    return (
+      <div className="waiting-room">
+        {showLeaveModal && (
+          <div className="leave-modal-overlay">
+            <div className="leave-modal">
+              <div className="leave-modal__icon">📞</div>
+              <h2 className="leave-modal__title">Leave call setup?</h2>
+              <p className="leave-modal__text">You'll go back to the profile page.</p>
+              <div className="leave-modal__actions">
+                <button className="leave-modal__btn leave-modal__btn--stay" onClick={stayInQueue}>Stay</button>
+                <button className="leave-modal__btn leave-modal__btn--leave" onClick={leaveQueue}>Go back</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="waiting-room__card waiting-room__card--call">
+          <div className="waiting-room__call-icon">📞</div>
+          <h2 className="waiting-room__title">Voice Call</h2>
+          <p className="waiting-room__text">Create a call room or join an existing one</p>
+          
+          {error && <div className="waiting-room__error">{error}</div>}
+          
+          {/* Create Call Room */}
+          <button 
+            onClick={createCallRoom} 
+            disabled={isCreating}
+            className="waiting-room__call-btn waiting-room__call-btn--create"
+          >
+            {isCreating ? 'Creating...' : '🎙️ Create New Call'}
+          </button>
+          
+          <div className="waiting-room__divider">
+            <span>OR</span>
+          </div>
+          
+          {/* Join Call Room */}
+          <div className="waiting-room__join-call">
+            <input
+              type="text"
+              placeholder="Enter Room Code"
+              value={roomCode}
+              onChange={(e) => {
+                setRoomCode(e.target.value.toUpperCase());
+                setError('');
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && joinCallRoom()}
+              maxLength={6}
+              className="waiting-room__room-input"
+            />
+            <button onClick={joinCallRoom} className="waiting-room__call-btn waiting-room__call-btn--join">
+              Join Call
+            </button>
+          </div>
+          
+          <button className="waiting-room__cancel-btn" onClick={() => setShowLeaveModal(true)}>Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================
+  // RENDER: 1v1 & Group Chat Modes
+  // ============================================
   return (
     <div className="waiting-room">
       {showLeaveModal && (

@@ -25,6 +25,7 @@ function SunIcon() { return (<svg width="18" height="18" viewBox="0 0 24 24" fil
 function MoonIcon() { return (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>);}
 
 // ✅ New icons for new features
+function CallIcon() { return (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>);}
 function EmojiFeatureIcon() { return (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" /></svg>);}
 function EditFeatureIcon() { return (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>);}
 function DeleteFeatureIcon() { return (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>);}
@@ -67,8 +68,8 @@ export default function Hero() {
 
   const handleInstall = async () => {
     if (installPrompt) { installPrompt.prompt(); const { outcome } = await installPrompt.userChoice; if (outcome === 'accepted') setIsInstalled(true); setInstallPrompt(null); setShowInstallBtn(false); setShowInstallBanner(false); }
-    else if (isIOS) { alert('To install LimeChat:\n\n1. Tap Share\n2. Add to Home Screen\n3. Tap Add'); setShowInstallBanner(false); }
-    else { alert('To install LimeChat:\n\n1. Click install icon in address bar\n2. Or Chrome Menu → Install'); setShowInstallBanner(false); }
+    else if (isIOS) { alert('To install CallChat:\n\n1. Tap Share\n2. Add to Home Screen\n3. Tap Add'); setShowInstallBanner(false); }
+    else { alert('To install CallChat:\n\n1. Click install icon in address bar\n2. Or Chrome Menu → Install'); setShowInstallBanner(false); }
   };
 
   const closeSupportModal = () => {
@@ -78,6 +79,7 @@ export default function Hero() {
 
 const features = [
     { icon: <ChatIcon />, title: "Real-time Chat", desc: "Instant messaging with no delays" },
+    { icon: <CallIcon />, title: "Voice Calls", desc: "Call anyone with just a room code" },
     { icon: <GroupIcon />, title: "Group Chat", desc: "Create or join groups up to 10 users" },
     { icon: <MembersIcon2 />, title: "Members Sidebar", desc: "See who's in your group chat" },
     { icon: <EmojiFeatureIcon />, title: "Emoji Picker", desc: "Express yourself with emojis" },
@@ -93,12 +95,13 @@ const features = [
 
  const steps = [
     { icon: <Step1Icon />, title: "Create Profile", desc: "Enter your name and location" },
-    { icon: <Step2Icon />, title: "Choose Mode", desc: "1v1 or Group Chat (max 10)" },
+    { icon: <Step2Icon />, title: "Choose Mode", desc: "1v1 Chat, Voice Call, or Group" },
     { icon: <Step3Icon />, title: "Start Chatting", desc: "Real-time anonymous conversation" },
     { icon: <Step4Icon />, title: "Express Yourself", desc: "Emojis, edit, delete & more" },
 ];
 
   const badges = [
+    { icon: <ShieldIcon />, text: "Chat & Voice Calls" },
     { icon: <ShieldIcon />, text: "100% Anonymous" },
     { icon: <ShieldIcon />, text: "No Data Stored" },
     { icon: <ShieldIcon />, text: "Free Forever" },
@@ -108,9 +111,8 @@ const features = [
   return (
     <div className="hero">
       <nav className="hero__nav">
-        <div className="hero__nav-left"><span className="hero__logo"><img src="/icon.png" alt="LimeChat" className="hero__logo-img" />LimeChat</span></div>
+        <div className="hero__nav-left"><span className="hero__logo"><img src="/icon.png" alt="CallChat" className="hero__logo-img" />CallChat</span></div>
         <div className="hero__nav-right">
-          {/* ✅ Dark Mode Toggle */}
           <button className="hero__dark-toggle" onClick={toggleDarkMode} aria-label="Toggle dark mode" title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
             {darkMode ? <SunIcon /> : <MoonIcon />}
           </button>
@@ -122,31 +124,71 @@ const features = [
 
       <div className="hero__content">
         <div className="hero__text">
-          <h1 className="hero__title">Chat with someone<br /><span className="hero__title-accent">new today.</span></h1>
-          <p className="hero__subtitle">Connect anonymously with people near you. No sign-ups. No profiles. Just real conversations.</p>
-          <div className="hero__actions"><button className="hero__cta" onClick={() => navigate('/terms')}>Find Someone to Chat<span className="hero__cta-arrow">→</span></button><button className="hero__link" onClick={() => navigate('/terms')}>Terms & Conditions</button></div>
+          <h1 className="hero__title">Chat & Call<br /><span className="hero__title-accent">anonymously.</span></h1>
+          <p className="hero__subtitle">Chat and call anonymously with people near you. No sign-ups. No profiles. Just real conversations.</p>
+          <div className="hero__actions"><button className="hero__cta" onClick={() => navigate('/terms')}>Start Chatting Now<span className="hero__cta-arrow">→</span></button><button className="hero__link" onClick={() => navigate('/terms')}>Terms & Conditions</button></div>
           <div className="hero__telegram-cta"><TelegramIcon size={18} /><div className="hero__telegram-cta-text"><span>Need help? Contact us on </span><a href="https://t.me/admlimech" target="_blank" rel="noopener noreferrer" className="hero__telegram-cta-link">Telegram</a><span className="hero__telegram-cta-divider">·</span><span className="hero__telegram-cta-promo">Want to post an announcement? DM for pricing (₱)</span></div></div>
           {!isInstalled && showInstallBanner && (<div className="hero__install-banner"><div className="hero__install-banner-icon"><InstallIcon size={36} /></div><div className="hero__install-banner-text"><strong>Add to Home Screen</strong><span>{isIOS ? 'Tap Share → Add to Home Screen' : 'Install for a better experience'}</span></div><button className="hero__install-banner-btn" onClick={handleInstall}>{isIOS ? 'How to Install' : 'Install'}</button></div>)}
-          <div className="hero__stats"><div className="hero__stat"><span className="hero__stat-num">100+</span><span className="hero__stat-lbl">Daily Chats</span></div><div className="hero__stat-divider" /><div className="hero__stat"><span className="hero__stat-num">100%</span><span className="hero__stat-lbl">Anonymous</span></div><div className="hero__stat-divider" /><div className="hero__stat"><span className="hero__stat-num">Free</span><span className="hero__stat-lbl">Forever</span></div></div>
+          <div className="hero__stats">
+            <div className="hero__stat"><span className="hero__stat-num">100+</span><span className="hero__stat-lbl">Daily Chats</span></div>
+            <div className="hero__stat-divider" />
+            <div className="hero__stat"><span className="hero__stat-num">📞</span><span className="hero__stat-lbl">Voice Calls</span></div>
+            <div className="hero__stat-divider" />
+            <div className="hero__stat"><span className="hero__stat-num">Free</span><span className="hero__stat-lbl">Forever</span></div>
+          </div>
         </div>
+        
+        {/* ✅ DUAL PHONE PREVIEW - Chat + Call */}
         <div className="hero__visual">
-          <div className="hero__card">
-            <div className="hero__card-header"><div className="hero__card-dot hero__card-dot--green" /><div className="hero__card-dot hero__card-dot--lime" /><div className="hero__card-dot hero__card-dot--gray" /></div>
-            <div className="hero__card-body"><div className="hero__msg hero__msg--received"><span className="hero__msg-avatar">J</span><div className="hero__msg-bubble">Hey! How's your day?</div></div><div className="hero__msg hero__msg--sent"><div className="hero__msg-bubble">Pretty good! You?</div></div><div className="hero__msg hero__msg--received"><span className="hero__msg-avatar">J</span><div className="hero__msg-bubble">Amazing! Where are you from?</div></div></div>
-            <div className="hero__card-input"><span className="hero__card-input-text">Type a message...</span><span className="hero__card-input-send">➤</span></div>
+          <div className="hero__phones">
+            {/* Chat Preview Phone */}
+            <div className="hero__card hero__card--chat">
+              <div className="hero__card-header"><div className="hero__card-dot hero__card-dot--green" /><div className="hero__card-dot hero__card-dot--lime" /><div className="hero__card-dot hero__card-dot--gray" /></div>
+              <div className="hero__card-body">
+                <div className="hero__msg hero__msg--received"><span className="hero__msg-avatar">J</span><div className="hero__msg-bubble">Hey! How's your day?</div></div>
+                <div className="hero__msg hero__msg--sent"><div className="hero__msg-bubble">Pretty good! You?</div></div>
+                <div className="hero__msg hero__msg--received"><span className="hero__msg-avatar">J</span><div className="hero__msg-bubble">Wanna hop on a call? 📞</div></div>
+              </div>
+              <div className="hero__card-input"><span className="hero__card-input-text">Type a message...</span><span className="hero__card-input-send">➤</span></div>
+              <div className="hero__card-label">💬 Chat</div>
+            </div>
+            
+            {/* Call Preview Phone */}
+            <div className="hero__card hero__card--call">
+              <div className="hero__call-screen">
+                <div className="hero__call-avatar">
+                  <span>J</span>
+                </div>
+                <div className="hero__call-name">Jamie</div>
+                <div className="hero__call-status">📞 On call · 05:32</div>
+                <div className="hero__call-audio-waves">
+                  <span className="hero__call-wave"></span>
+                  <span className="hero__call-wave"></span>
+                  <span className="hero__call-wave"></span>
+                  <span className="hero__call-wave"></span>
+                  <span className="hero__call-wave"></span>
+                </div>
+                <div className="hero__call-actions">
+                  <button className="hero__call-btn hero__call-btn--mic">🎤</button>
+                  <button className="hero__call-btn hero__call-btn--end">🔴</button>
+                  <button className="hero__call-btn hero__call-btn--speaker">🔊</button>
+                </div>
+              </div>
+              <div className="hero__card-label">📞 Voice Call</div>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="hero__how"><h2 className="hero__how-title">How It Works</h2><div className="hero__how-steps">{steps.map((s, i) => (<div key={i} className="hero__how-step"><div className="hero__how-step-num">{i + 1}</div><div className="hero__how-step-icon">{s.icon}</div><h3 className="hero__how-step-title">{s.title}</h3><p className="hero__how-step-desc">{s.desc}</p></div>))}</div></div>
 
-      <div className="hero__mockup"><div className="hero__mockup-text"><h2 className="hero__mockup-title">See It in Action</h2><p className="hero__mockup-desc">Simple, fast, and completely anonymous.</p><div className="hero__mockup-badges">{badges.map((b, i) => (<div key={i} className="hero__mockup-badge"><span className="hero__mockup-badge-icon">{b.icon}</span>{b.text}</div>))}</div></div>
-        <div className="hero__mockup-phone"><div className="hero__mockup-phone-frame"><div className="hero__mockup-phone-screen"><div className="hero__mockup-phone-status"><span className="hero__mockup-phone-time">9:41</span><span className="hero__mockup-phone-icons">●●●●</span></div><div className="hero__mockup-phone-header"><span className="hero__mockup-phone-back">←</span><div className="hero__mockup-phone-avatar">J</div><div className="hero__mockup-phone-user"><div className="hero__mockup-phone-name">Jamie</div><div className="hero__mockup-phone-location">📍 Manila</div></div><div className="hero__mockup-phone-dot" /></div><div className="hero__mockup-phone-chat"><div className="hero__mockup-phone-msg hero__mockup-phone-msg--received">Hey! How's your day?</div><div className="hero__mockup-phone-msg hero__mockup-phone-msg--sent">Pretty good! Just chilling</div><div className="hero__mockup-phone-msg hero__mockup-phone-msg--received">Nice! Where are you from?</div><div className="hero__mockup-phone-msg hero__mockup-phone-msg--sent">Manila area! Ikaw?</div><div className="hero__mockup-phone-typing"><span /><span /><span /></div></div><div className="hero__mockup-phone-input"><div className="hero__mockup-phone-input-field">Type a message...</div><div className="hero__mockup-phone-input-send">➤</div></div><div style={{ padding: '6px 0', background: 'white' }}><div className="hero__mockup-phone-home" /></div></div></div></div></div>
+      <div className="hero__mockup"><div className="hero__mockup-text"><h2 className="hero__mockup-title">See It in Action</h2><p className="hero__mockup-desc">Chat, call, and connect. Simple, fast, and completely anonymous.</p><div className="hero__mockup-badges">{badges.map((b, i) => (<div key={i} className="hero__mockup-badge"><span className="hero__mockup-badge-icon">{b.icon}</span>{b.text}</div>))}</div></div>
+        <div className="hero__mockup-phone"><div className="hero__mockup-phone-frame"><div className="hero__mockup-phone-screen"><div className="hero__mockup-phone-status"><span className="hero__mockup-phone-time">9:41</span><span className="hero__mockup-phone-icons">●●●●</span></div><div className="hero__mockup-phone-header"><span className="hero__mockup-phone-back">←</span><div className="hero__mockup-phone-avatar">J</div><div className="hero__mockup-phone-user"><div className="hero__mockup-phone-name">Jamie</div><div className="hero__mockup-phone-location">📍 Manila</div></div><div className="hero__mockup-phone-dot" /></div><div className="hero__mockup-phone-chat"><div className="hero__mockup-phone-msg hero__mockup-phone-msg--received">Hey! How's your day?</div><div className="hero__mockup-phone-msg hero__mockup-phone-msg--sent">Pretty good! Just chilling</div><div className="hero__mockup-phone-msg hero__mockup-phone-msg--received">Nice! Wanna call? 📞</div><div className="hero__mockup-phone-msg hero__mockup-phone-msg--sent">Sure! Let's do it</div><div className="hero__mockup-phone-typing"><span /><span /><span /></div></div><div className="hero__mockup-phone-input"><div className="hero__mockup-phone-input-field">Type a message...</div><div className="hero__mockup-phone-input-send">➤</div></div><div style={{ padding: '6px 0', background: 'white' }}><div className="hero__mockup-phone-home" /></div></div></div></div></div>
 
-      <div className="hero__features"><h2 className="hero__features-title">Why LimeChat?</h2><div className="hero__features-grid">{features.map((f, i) => (<div key={i} className="hero__feature-card"><div className="hero__feature-icon">{f.icon}</div><h3 className="hero__feature-name">{f.title}</h3><p className="hero__feature-desc">{f.desc}</p></div>))}</div></div>
+      <div className="hero__features"><h2 className="hero__features-title">Why CallChat?</h2><div className="hero__features-grid">{features.map((f, i) => (<div key={i} className="hero__feature-card"><div className="hero__feature-icon">{f.icon}</div><h3 className="hero__feature-name">{f.title}</h3><p className="hero__feature-desc">{f.desc}</p></div>))}</div></div>
 
     <footer className="hero__footer">
-  <span>© 2026 LimeChat</span>
+  <span>© 2026 CallChat</span>
   <span className="hero__footer-dot">·</span>
   <button className="hero__footer-link" onClick={() => navigate('/faq')}>FAQ</button>
   <span className="hero__footer-dot">·</span>
@@ -159,8 +201,8 @@ const features = [
           <div className="support-modal" onClick={(e) => e.stopPropagation()}>
             <button className="support-modal__close" onClick={closeSupportModal}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             <div className="support-modal__icon">🦊</div>
-            <h2 className="support-modal__title">Support LimeChat</h2>
-            <p className="support-modal__desc">Help us improve your experience! Your support keeps LimeChat running and helps us add new features.</p>
+            <h2 className="support-modal__title">Support CallChat</h2>
+            <p className="support-modal__desc">Help us improve your experience! Your support keeps CallChat running and helps us add new features like voice calls and more.</p>
             <div className="support-modal__cards">
               <div className="support-modal__card">
                 <div className="support-modal__card-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
