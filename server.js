@@ -17,6 +17,29 @@ const io = new Server(server, {
     pingInterval: 25000,
 });
 
+// ============================================
+// ✅ HEALTH CHECK ENDPOINT (For Render)
+// ============================================
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    message: 'LimeChat Server is running'
+  });
+});
+
+// ============================================
+// ✅ ROOT ENDPOINT
+// ============================================
+app.get('/api', (req, res) => {
+  res.status(200).json({ 
+    name: 'LimeChat API',
+    version: '1.0.0',
+    status: 'online'
+  });
+});
+
 let waitingUsers = [];
 const activeRooms = new Map();
 const matchedUsers = new Set();
@@ -227,7 +250,7 @@ io.on("connection", (socket) => {
     const storedBanned = socket.handshake.query.banned === 'true';
     
     // ✅ BAN CHECK — clientId + IP + localStorage
- if (bannedUsers.has(clientId) || bannedIPs.has(clientIP) || storedBanned) {
+    if (bannedUsers.has(clientId) || bannedIPs.has(clientIP) || storedBanned) {
         console.log(`🚫 Banned user rejected: ${clientId} (IP: ${clientIP})`);
         socket.emit('banned', 'You have been permanently banned from LimeChat.');
         socket.disconnect(true);
@@ -413,14 +436,41 @@ function getActiveChatsList() { const c = []; activeRooms.forEach((r, rid) => { 
 function buildAdminData() { return { users: allUsers.filter(u => (u.status === 'connected' && u.roomId) || u.status === 'waiting' || (Date.now() - new Date(u.lastActive).getTime()) < 60000), activeChats: getActiveChatsList(), totalVisitors: uniqueVisitors.size, totalMatches, activeNow: allUsers.filter(u => u.status === 'connected' && u.roomId).length, waitingNow: allUsers.filter(u => u.status === 'waiting').length, announcement: currentAnnouncement, groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length })), suspiciousUsers: suspiciousUsers.size, bannedCount: bannedUsers.size }; }
 function broadcastAdminUpdate() { broadcastToAdmins('adminUpdate', buildAdminData()); }
 
+// ============================================
+// ✅ PRODUCTION: Serve static files AFTER API routes
+// ============================================
 if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, 'dist')));
-    app.get('/*', (req, res) => { res.sendFile(path.join(__dirname, 'dist', 'index.html')); });
+    app.get('/*', (req, res) => {
+        // Don't serve index.html for /api or /health or /status routes
+        if (req.path.startsWith('/api') || req.path === '/health' || req.path === '/status') {
+            return res.status(404).json({ error: 'Not found' });
+        }
+        res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+    });
 }
 
+// ============================================
+// ✅ ERROR HANDLERS
+// ============================================
+process.on('uncaughtException', (err) => {
+    console.error('❌ Uncaught Exception:', err.message);
+});
+
+process.on('unhandledRejection', (reason) => {
+    console.error('❌ Unhandled Rejection:', reason);
+});
+
+// ============================================
+// ✅ START SERVER
+// ============================================
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`👥 Group chat enabled`);
+    console.log(`✏️ Message edit/delete enabled`);
+    console.log(`📝 Group name edit enabled`);
     console.log(`🛡️ Anti-spam protection enabled`);
     console.log(`🚫 Hard ban system enabled (IP + clientId + localStorage)`);
+    console.log(`🏥 Health check: http://0.0.0.0:${PORT}/health`);
 });
