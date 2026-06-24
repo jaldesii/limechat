@@ -3,7 +3,7 @@ const ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icon.png', 
+  '/icon.png' // ✅ Removed trailing comma
 ];
 
 // Install
@@ -36,30 +36,53 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// ✅ FIXED: Fetch — Skip Socket.io & API requests
+// ✅ FIXED: Fetch — proper Response fallback
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
   
-  // ✅ Don't intercept Socket.io or API requests
-  if (url.includes('/socket.io/') || url.includes('/status')) {
-    return; // Let browser handle normally
+  // ✅ Skip Socket.io, API, at Chrome DevTools requests
+  if (url.includes('/socket.io/') || 
+      url.includes('/status') ||
+      url.includes('chrome-extension://') ||
+      event.request.method !== 'GET') {
+    return; // Let browser handle
   }
   
-  // ✅ Network first for everything else
+  // ✅ Network first with proper fallback
   event.respondWith(
     fetch(event.request)
       .then(response => {
-        // Only cache GET requests
-        if (event.request.method === 'GET') {
+        // Only cache successful GET responses
+        if (response && response.status === 200) {
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then(cache => {
             cache.put(event.request, responseClone);
+          }).catch(() => {
+            // Ignore cache put errors
           });
         }
         return response;
       })
       .catch(() => {
-        return caches.match(event.request);
+        // ✅ Network failed, try cache
+        return caches.match(event.request).then(cachedResponse => {
+          // ✅ Always return a valid Response object
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          
+          // ✅ For navigation requests, return index.html (SPA fallback)
+          if (event.request.mode === 'navigate') {
+            return caches.match('/index.html') || caches.match('/');
+          }
+          
+          // ✅ Fallback for other requests
+          return new Response('Offline', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: { 'Content-Type': 'text/plain' }
+          });
+        });
       })
   );
 });
