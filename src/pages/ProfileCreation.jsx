@@ -79,7 +79,7 @@ export default function ProfileCreation() {
           <div className="profile-creation__icon">
             <img src="/icon.png" alt="CallChat" className="profile-creation__icon-img" />
           </div>
-          <span className="profile-creation__brand-name">CallChat</span>
+          <span className="profile-creation__brand-name">LimeChat</span>
         </div>
         <h1 className="profile-creation__title">Start Connecting</h1>
         <p className="profile-creation__subtitle">Enter your details and choose a mode</p>

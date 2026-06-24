@@ -111,7 +111,7 @@ const features = [
   return (
     <div className="hero">
       <nav className="hero__nav">
-        <div className="hero__nav-left"><span className="hero__logo"><img src="/icon.png" alt="CallChat" className="hero__logo-img" />CallChat</span></div>
+        <div className="hero__nav-left"><span className="hero__logo"><img src="/icon.png" alt="CallChat" className="hero__logo-img" />LimeChat</span></div>
         <div className="hero__nav-right">
           <button className="hero__dark-toggle" onClick={toggleDarkMode} aria-label="Toggle dark mode" title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
             {darkMode ? <SunIcon /> : <MoonIcon />}
@@ -185,10 +185,10 @@ const features = [
       <div className="hero__mockup"><div className="hero__mockup-text"><h2 className="hero__mockup-title">See It in Action</h2><p className="hero__mockup-desc">Chat, call, and connect. Simple, fast, and completely anonymous.</p><div className="hero__mockup-badges">{badges.map((b, i) => (<div key={i} className="hero__mockup-badge"><span className="hero__mockup-badge-icon">{b.icon}</span>{b.text}</div>))}</div></div>
         <div className="hero__mockup-phone"><div className="hero__mockup-phone-frame"><div className="hero__mockup-phone-screen"><div className="hero__mockup-phone-status"><span className="hero__mockup-phone-time">9:41</span><span className="hero__mockup-phone-icons">●●●●</span></div><div className="hero__mockup-phone-header"><span className="hero__mockup-phone-back">←</span><div className="hero__mockup-phone-avatar">J</div><div className="hero__mockup-phone-user"><div className="hero__mockup-phone-name">Jamie</div><div className="hero__mockup-phone-location">📍 Manila</div></div><div className="hero__mockup-phone-dot" /></div><div className="hero__mockup-phone-chat"><div className="hero__mockup-phone-msg hero__mockup-phone-msg--received">Hey! How's your day?</div><div className="hero__mockup-phone-msg hero__mockup-phone-msg--sent">Pretty good! Just chilling</div><div className="hero__mockup-phone-msg hero__mockup-phone-msg--received">Nice! Wanna call? 📞</div><div className="hero__mockup-phone-msg hero__mockup-phone-msg--sent">Sure! Let's do it</div><div className="hero__mockup-phone-typing"><span /><span /><span /></div></div><div className="hero__mockup-phone-input"><div className="hero__mockup-phone-input-field">Type a message...</div><div className="hero__mockup-phone-input-send">➤</div></div><div style={{ padding: '6px 0', background: 'white' }}><div className="hero__mockup-phone-home" /></div></div></div></div></div>
 
-      <div className="hero__features"><h2 className="hero__features-title">Why CallChat?</h2><div className="hero__features-grid">{features.map((f, i) => (<div key={i} className="hero__feature-card"><div className="hero__feature-icon">{f.icon}</div><h3 className="hero__feature-name">{f.title}</h3><p className="hero__feature-desc">{f.desc}</p></div>))}</div></div>
+      <div className="hero__features"><h2 className="hero__features-title">Why LimeChat?</h2><div className="hero__features-grid">{features.map((f, i) => (<div key={i} className="hero__feature-card"><div className="hero__feature-icon">{f.icon}</div><h3 className="hero__feature-name">{f.title}</h3><p className="hero__feature-desc">{f.desc}</p></div>))}</div></div>
 
     <footer className="hero__footer">
-  <span>© 2026 CallChat</span>
+  <span>© 2026 LimeChat</span>
   <span className="hero__footer-dot">·</span>
   <button className="hero__footer-link" onClick={() => navigate('/faq')}>FAQ</button>
   <span className="hero__footer-dot">·</span>
@@ -201,7 +201,7 @@ const features = [
           <div className="support-modal" onClick={(e) => e.stopPropagation()}>
             <button className="support-modal__close" onClick={closeSupportModal}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             <div className="support-modal__icon">🦊</div>
-            <h2 className="support-modal__title">Support CallChat</h2>
+            <h2 className="support-modal__title">Support LimeChat</h2>
             <p className="support-modal__desc">Help us improve your experience! Your support keeps CallChat running and helps us add new features like voice calls and more.</p>
             <div className="support-modal__cards">
               <div className="support-modal__card">
