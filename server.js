@@ -55,6 +55,9 @@ let groups = [];
 // ✅ Voice Call Rooms
 const callRooms = new Map();
 
+// ✅ VOICE CALL QUEUE (Auto-match)
+let callQueue = [];
+
 // ✅ Anti-Spam: Rate limiting
 const messageTimestamps = {};
 const userMessageHistory = {};
@@ -89,13 +92,16 @@ setInterval(() => {
     });
     groups = groups.filter(g => g.users.length > 0);
     
-    // ✅ Clean up stale call rooms (older than 30 minutes)
+    // ✅ Clean up stale call rooms & queue
     callRooms.forEach((room, roomId) => {
         if (now - room.createdAt > 30 * 60 * 1000) {
             callRooms.delete(roomId);
             console.log(`🗑️ Stale call room deleted: ${roomId}`);
         }
     });
+    
+    // Clean stale call queue (older than 5 minutes)
+    callQueue = callQueue.filter(u => now - u.joinedAt < 5 * 60 * 1000);
     
     broadcastAdminUpdate();
 }, 10000);
@@ -112,6 +118,7 @@ app.get("/status", (req, res) => res.json({
     announcement: currentAnnouncement,
     groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length })),
     callRooms: callRooms.size,
+    callQueue: callQueue.length,
     suspiciousUsers: suspiciousUsers.size,
     bannedCount: bannedUsers.size
 }));
@@ -165,6 +172,44 @@ function isSpamming(socketId, message) {
     return null;
 }
 
+// ✅ Auto-match call queue function
+function tryMatchCallQueue() {
+    if (callQueue.length >= 2) {
+        const user1 = callQueue.shift();
+        const user2 = callQueue.shift();
+        
+        const roomId = 'call-' + Date.now();
+        const s1 = io.sockets.sockets.get(user1.socketId);
+        const s2 = io.sockets.sockets.get(user2.socketId);
+        
+        if (s1 && s2) {
+            s1.join(roomId);
+            s2.join(roomId);
+            
+            callRooms.set(roomId, {
+                creator: user1.socketId,
+                participants: [user1.socketId, user2.socketId],
+                createdAt: Date.now()
+            });
+            
+            // Tell user1 they're host with partner info
+            s1.emit("callMatched", { 
+                roomId, 
+                isHost: true, 
+                partner: { name: user2.name, location: user2.location }
+            });
+            // Tell user2 they're guest with partner info
+            s2.emit("callMatched", { 
+                roomId, 
+                isHost: false, 
+                partner: { name: user1.name, location: user1.location }
+            });
+            
+            console.log(`✅ Call matched! Room: ${roomId} | ${user1.name} ↔ ${user2.name}`);
+        }
+    }
+}
+
 io.on("connection", (socket) => {
     const isAdmin = socket.handshake.query.role === 'admin';
     
@@ -172,7 +217,36 @@ io.on("connection", (socket) => {
     // ✅ VOICE CALL HANDLERS (For regular users)
     // ============================================
     if (!isAdmin) {
-        // Create call room
+        // ✅ JOIN CALL QUEUE (Auto-match)
+        socket.on("joinCallQueue", (user) => {
+            callQueue = callQueue.filter(u => u.socketId !== socket.id);
+            
+            callQueue.push({
+                socketId: socket.id,
+                name: user.name,
+                location: user.location,
+                joinedAt: Date.now()
+            });
+            
+            console.log(`📞 Call queue: ${callQueue.length} user(s)`);
+            tryMatchCallQueue();
+        });
+        
+        // ✅ LEAVE CALL QUEUE
+        socket.on("leaveCallQueue", () => {
+            callQueue = callQueue.filter(u => u.socketId !== socket.id);
+            console.log(`👋 Left call queue: ${socket.id}`);
+        });
+
+        // ✅ SEND PARTNER INFO (For displaying name + location)
+        socket.on("sendCallPartnerInfo", (data) => {
+            socket.to(data.roomId).emit("callPartnerInfo", {
+                name: data.name,
+                location: data.location
+            });
+        });
+
+        // Create call room (manual)
         socket.on("createRoom", (callback) => {
             const roomId = generateRoomCode();
             callRooms.set(roomId, {
@@ -185,7 +259,7 @@ io.on("connection", (socket) => {
             console.log(`📞 Call room created: ${roomId} by ${socket.id}`);
         });
 
-        // Join call room
+        // Join call room (manual)
         socket.on("joinRoom", (roomId, callback) => {
             const room = callRooms.get(roomId);
             
@@ -199,7 +273,6 @@ io.on("connection", (socket) => {
                 return;
             }
             
-            // Prevent joining own room
             if (room.participants.includes(socket.id)) {
                 callback({ error: "You cannot join your own room" });
                 return;
@@ -207,10 +280,7 @@ io.on("connection", (socket) => {
             
             room.participants.push(socket.id);
             socket.join(roomId);
-            
-            // Notify creator that someone joined
             socket.to(roomId).emit("userJoined", { userId: socket.id });
-            
             callback({ success: true, roomId });
             console.log(`👋 User ${socket.id} joined call: ${roomId}`);
         });
@@ -222,7 +292,7 @@ io.on("connection", (socket) => {
             console.log(`🔴 Call ended: ${roomId}`);
         });
 
-        // WebRTC Signaling for calls
+        // WebRTC Signaling
         socket.on("offer", (data) => {
             socket.to(data.roomId).emit("offer", data);
         });
@@ -251,6 +321,7 @@ io.on("connection", (socket) => {
             allUsers = []; waitingUsers = []; activeRooms.clear(); matchedUsers.clear();
             uniqueVisitors.clear(); totalMatches = 0; currentAnnouncement = null; groups = [];
             callRooms.clear();
+            callQueue = [];
             suspiciousUsers.clear();
             if (expireTimeout) clearTimeout(expireTimeout); expireTimeout = null;
             broadcastAdminUpdate();
@@ -276,7 +347,6 @@ io.on("connection", (socket) => {
             broadcastAdminUpdate();
         });
         
-        // ✅ BAN USER (HARD BAN — IP + clientId)
         socket.on('adminBanUser', (data) => {
             const targetId = data.clientId;
             if (targetId) {
@@ -285,7 +355,6 @@ io.on("connection", (socket) => {
                 const targetUser = allUsers.find(u => u.clientId === targetId);
                 const targetSocket = targetUser ? io.sockets.sockets.get(targetUser.socketId) : null;
                 
-                // ✅ Ban IP
                 if (targetSocket) {
                     const ip = targetSocket.handshake.headers['x-forwarded-for'] || 
                                targetSocket.handshake.address || '';
@@ -297,12 +366,11 @@ io.on("connection", (socket) => {
                     targetSocket.disconnect(true);
                 }
                 
-                // ✅ Remove from all data
                 waitingUsers = waitingUsers.filter(u => u.clientId !== targetId);
+                callQueue = callQueue.filter(u => u.socketId !== targetUser?.socketId);
                 if (targetUser) {
                     matchedUsers.delete(targetUser.socketId);
                     leaveGroup(targetUser.socketId);
-                    // Remove from call rooms
                     callRooms.forEach((room, roomId) => {
                         if (room.participants.includes(targetUser.socketId)) {
                             callRooms.delete(roomId);
@@ -316,14 +384,12 @@ io.on("connection", (socket) => {
             }
         });
         
-        // ✅ UNBAN USER
         socket.on('adminUnbanUser', (data) => {
             bannedUsers.delete(data.clientId);
             console.log(`✅ User unbanned: ${data.clientId}`);
             broadcastAdminUpdate();
         });
         
-        // ✅ GET BANNED LIST
         socket.on('adminGetBanned', () => {
             socket.emit('adminBannedList', {
                 banned: [...bannedUsers],
@@ -342,7 +408,6 @@ io.on("connection", (socket) => {
     const clientIP = socket.handshake.address || socket.handshake.headers['x-forwarded-for'] || 'unknown';
     const storedBanned = socket.handshake.query.banned === 'true';
     
-    // ✅ BAN CHECK — clientId + IP + localStorage
     if (bannedUsers.has(clientId) || bannedIPs.has(clientIP) || storedBanned) {
         console.log(`🚫 Banned user rejected: ${clientId} (IP: ${clientIP})`);
         socket.emit('banned', 'You have been permanently banned from CallChat.');
@@ -504,11 +569,12 @@ io.on("connection", (socket) => {
     });
 
     socket.on("disconnect", () => {
-        waitingUsers = waitingUsers.filter(u => u.socketId !== socket.id); matchedUsers.delete(socket.id);
+        waitingUsers = waitingUsers.filter(u => u.socketId !== socket.id); 
+        matchedUsers.delete(socket.id);
+        callQueue = callQueue.filter(u => u.socketId !== socket.id);
         updateUser(socket.id, { status: 'disconnected', lastActive: new Date().toISOString() });
         leaveGroup(socket.id);
         
-        // ✅ Clean up call rooms on disconnect
         callRooms.forEach((room, roomId) => {
             if (room.participants.includes(socket.id)) {
                 socket.to(roomId).emit("userLeft");
@@ -532,7 +598,6 @@ io.on("connection", (socket) => {
     });
 });
 
-// ✅ Helper: Clean up call room
 function cleanupCallRoom(roomId, socket) {
     const room = callRooms.get(roomId);
     if (room) {
@@ -545,16 +610,15 @@ function getAdminSockets() { const a = []; io.sockets.sockets.forEach(s => { if 
 function broadcastToAdmins(e, d) { getAdminSockets().forEach(id => io.to(id).emit(e, d)); }
 function updateUser(sid, upd) { const i = allUsers.findIndex(u => u.socketId === sid); if (i !== -1) allUsers[i] = { ...allUsers[i], ...upd }; }
 function getActiveChatsList() { const c = []; activeRooms.forEach((r, rid) => { if (r.users.length >= 2) c.push({ roomId: rid, user1: r.users[0]?.name || '?', user2: r.users[1]?.name || '?', startedAt: new Date(r.createdAt).toISOString() }); }); return c; }
-function buildAdminData() { return { users: allUsers.filter(u => (u.status === 'connected' && u.roomId) || u.status === 'waiting' || (Date.now() - new Date(u.lastActive).getTime()) < 60000), activeChats: getActiveChatsList(), totalVisitors: uniqueVisitors.size, totalMatches, activeNow: allUsers.filter(u => u.status === 'connected' && u.roomId).length, waitingNow: allUsers.filter(u => u.status === 'waiting').length, announcement: currentAnnouncement, groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length })), callRooms: callRooms.size, suspiciousUsers: suspiciousUsers.size, bannedCount: bannedUsers.size }; }
+function buildAdminData() { return { users: allUsers.filter(u => (u.status === 'connected' && u.roomId) || u.status === 'waiting' || (Date.now() - new Date(u.lastActive).getTime()) < 60000), activeChats: getActiveChatsList(), totalVisitors: uniqueVisitors.size, totalMatches, activeNow: allUsers.filter(u => u.status === 'connected' && u.roomId).length, waitingNow: allUsers.filter(u => u.status === 'waiting').length, announcement: currentAnnouncement, groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length })), callRooms: callRooms.size, callQueue: callQueue.length, suspiciousUsers: suspiciousUsers.size, bannedCount: bannedUsers.size }; }
 function broadcastAdminUpdate() { broadcastToAdmins('adminUpdate', buildAdminData()); }
 
 // ============================================
-// ✅ PRODUCTION: Serve static files AFTER API routes
+// ✅ PRODUCTION
 // ============================================
 if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, 'dist')));
     app.get('/*', (req, res) => {
-        // Don't serve index.html for /api or /health or /status routes
         if (req.path.startsWith('/api') || req.path === '/health' || req.path === '/status') {
             return res.status(404).json({ error: 'Not found' });
         }
@@ -580,10 +644,10 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 CallChat Server running on port ${PORT}`);
     console.log(`👥 Group chat enabled`);
-    console.log(`📞 Voice call enabled`);
+    console.log(`📞 Voice call enabled (Auto-match queue)`);
     console.log(`✏️ Message edit/delete enabled`);
     console.log(`📝 Group name edit enabled`);
     console.log(`🛡️ Anti-spam protection enabled`);
-    console.log(`🚫 Hard ban system enabled (IP + clientId + localStorage)`);
+    console.log(`🚫 Hard ban system enabled`);
     console.log(`🏥 Health check: http://0.0.0.0:${PORT}/health`);
 });

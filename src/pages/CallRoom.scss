@@ -9,150 +9,157 @@ $lime: #84cc16;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+  background: linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 100%);
   font-family: $font;
   padding: 24px;
 
   &__container {
     text-align: center;
-    max-width: 400px;
+    max-width: 380px;
     width: 100%;
   }
 
   &__avatar {
-    width: 120px;
-    height: 120px;
+    width: 130px;
+    height: 130px;
     border-radius: 50%;
-    background: linear-gradient(135deg, $lime, #65a30d);
+    background: linear-gradient(135deg, #1e293b, #334155);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 24px;
-    font-size: 48px;
-    color: #09090b;
-    box-shadow: 0 0 0 8px rgba($lime, 0.2);
-    transition: all 0.3s;
+    margin: 0 auto 20px;
+    color: #fff;
+    box-shadow: 0 0 0 6px rgba($lime, 0.15);
+    transition: all 0.5s;
 
     &--active {
+      background: linear-gradient(135deg, $lime, #65a30d);
+      box-shadow: 0 0 0 8px rgba($lime, 0.2);
       animation: pulse-avatar 2s ease-in-out infinite;
     }
   }
 
+  &__avatar-text {
+    font-size: 42px;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    svg { width: 48px; height: 48px; color: rgba(255,255,255,0.5); }
+  }
+
   &__name {
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 600;
     color: #fff;
-    margin: 0 0 8px;
+    margin: 0 0 4px;
+  }
+
+  &__location {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    margin: 0 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
   }
 
   &__status {
-    font-size: 16px;
+    font-size: 15px;
     color: $lime;
     font-weight: 500;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
+    font-variant-numeric: tabular-nums;
   }
 
-  // ✅ Audio Quality Badge
   &__quality {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
+    font-size: 10px;
     color: $lime;
-    font-weight: 500;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 20px;
-    background: rgba($lime, 0.1);
-    padding: 6px 12px;
+    letter-spacing: 1.5px;
+    margin-bottom: 24px;
+    background: rgba($lime, 0.08);
+    padding: 6px 14px;
     border-radius: 20px;
+    border: 1px solid rgba($lime, 0.15);
 
     &-dot {
-      width: 6px;
-      height: 6px;
+      width: 5px;
+      height: 5px;
       background: $lime;
       border-radius: 50%;
       animation: pulse 1.5s ease-in-out infinite;
     }
   }
 
-  &__code {
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 12px;
-    padding: 16px;
-    cursor: pointer;
-    margin-bottom: 24px;
-    transition: all 0.3s;
-
-    &:hover { background: rgba(255,255,255,0.15); }
-
-    span { font-size: 12px; color: rgba(255,255,255,0.6); display: block; }
-    strong { font-size: 28px; color: #fff; letter-spacing: 4px; display: block; margin: 4px 0; }
-    small { font-size: 11px; color: rgba(255,255,255,0.4); }
+  // ✅ Your info (bottom preview)
+  &__my-info {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 10px 16px;
+    margin-bottom: 20px;
   }
 
-  &__start-btn {
-    padding: 16px 32px;
-    background: #3b82f6;
-    color: #fff;
-    border: none;
-    border-radius: 14px;
-    font-size: 18px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: $font;
-    margin-top: 8px;
-    transition: all 0.3s;
-    width: 100%;
-
-    &:hover {
-      background: #2563eb;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
-    }
-
-    &:active { transform: translateY(0); }
-  }
-
-  &__waiting {
-    margin-top: 8px;
-
-    p { color: rgba(255,255,255,0.8); margin-bottom: 8px; }
-    small { color: rgba(255,255,255,0.5); font-size: 13px; }
-    strong { color: #fff; letter-spacing: 2px; }
-  }
-
-  &__spinner {
-    width: 40px;
-    height: 40px;
-    margin: 0 auto 16px;
-    border: 3px solid rgba(255,255,255,0.1);
-    border-top-color: $lime;
+  &__my-avatar {
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  &__my-details {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+  }
+
+  &__my-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.8);
+  }
+
+  &__my-location {
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
   }
 
   &__error-msg {
-    background: rgba(239, 68, 68, 0.15);
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
     border-radius: 12px;
     padding: 16px;
     margin-bottom: 16px;
-
-    p { color: #fca5a5; font-size: 14px; margin-bottom: 12px; line-height: 1.5; }
+    p { color: #fca5a5; font-size: 14px; margin-bottom: 12px; }
   }
 
   &__retry-btn {
-    padding: 10px 20px;
-    background: rgba(255,255,255,0.15);
+    padding: 8px 20px;
+    background: rgba(255,255,255,0.1);
     color: #fff;
-    border: 1px solid rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.15);
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     font-family: $font;
+    &:hover { background: rgba(255,255,255,0.2); }
   }
 
   &__waves {
@@ -160,109 +167,85 @@ $lime: #84cc16;
     align-items: center;
     justify-content: center;
     gap: 3px;
-    height: 40px;
-    margin-bottom: 24px;
+    height: 32px;
+    margin-bottom: 28px;
 
     span {
-      width: 4px;
+      width: 3px;
       background: $lime;
       border-radius: 2px;
       animation: wave 1.2s ease-in-out infinite;
-
-      &:nth-child(1) { height: 12px; animation-delay: 0s; }
-      &:nth-child(2) { height: 24px; animation-delay: 0.2s; }
-      &:nth-child(3) { height: 36px; animation-delay: 0.4s; }
-      &:nth-child(4) { height: 24px; animation-delay: 0.6s; }
-      &:nth-child(5) { height: 12px; animation-delay: 0.8s; }
+      &:nth-child(1) { height: 10px; animation-delay: 0s; }
+      &:nth-child(2) { height: 20px; animation-delay: 0.2s; }
+      &:nth-child(3) { height: 30px; animation-delay: 0.4s; }
+      &:nth-child(4) { height: 20px; animation-delay: 0.6s; }
+      &:nth-child(5) { height: 10px; animation-delay: 0.8s; }
     }
   }
 
   &__controls {
     display: flex;
     justify-content: center;
-    gap: 20px;
+    align-items: center;
+    gap: 24px;
   }
 
   &__ctrl {
-    width: 56px;
-    height: 56px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
     border: none;
-    font-size: 22px;
     cursor: pointer;
-    background: rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.1);
     color: #fff;
-    transition: all 0.3s;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-    &:hover { transform: scale(1.1); }
+    &:hover { background: rgba(255,255,255,0.2); transform: scale(1.05); }
+    &:active { transform: scale(0.95); }
 
-    &--off { background: rgba(255,0,0,0.4); }
+    &--off {
+      background: rgba(239, 68, 68, 0.3) !important;
+      color: #fca5a5;
+    }
 
     &--end {
-      background: #ef4444;
-      width: auto;
-      padding: 0 24px;
-      border-radius: 28px;
-      font-size: 15px;
-      font-weight: 600;
-      &:hover { background: #dc2626; }
+      background: #ef4444 !important;
+      width: 56px;
+      height: 56px;
+      &:hover { background: #dc2626 !important; }
     }
   }
 
   &__ended {
-    p { color: rgba(255,255,255,0.6); margin-bottom: 16px; font-size: 15px; }
+    p { color: rgba(255,255,255,0.5); margin-bottom: 20px; font-size: 15px; }
   }
 
   &__back-btn {
-    padding: 12px 24px;
-    background: rgba(255,255,255,0.15);
-    color: #fff;
-    border: 1px solid rgba(255,255,255,0.2);
+    padding: 12px 28px;
+    background: $lime;
+    color: #09090b;
+    border: none;
     border-radius: 10px;
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
     font-family: $font;
-
-    &:hover { background: rgba(255,255,255,0.25); }
+    &:hover { background: #a3e635; }
   }
-  // ✅ Echo prevention tip
-&__echo-tip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(251, 191, 36, 0.15);
-  border: 1px solid rgba(251, 191, 36, 0.3);
-  color: #fbbf24;
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 500;
-  margin-bottom: 20px;
-  text-align: left;
-  
-  span { flex: 1; }
 }
-
-// ✅ Active control button
-&__ctrl--active {
-  background: rgba($lime, 0.3) !important;
-}
-}
-
-
 
 @keyframes pulse-avatar {
   0%, 100% { box-shadow: 0 0 0 8px rgba($lime, 0.2); }
-  50% { box-shadow: 0 0 0 24px rgba($lime, 0.05); }
+  50% { box-shadow: 0 0 0 20px rgba($lime, 0.05); }
 }
 
 @keyframes wave {
-  0%, 100% { height: 12px; }
-  50% { height: 36px; }
+  0%, 100% { height: 10px; }
+  50% { height: 30px; }
 }
-
-@keyframes spin { to { transform: rotate(360deg); } }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
