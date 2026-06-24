@@ -25,6 +25,10 @@ export default function TermsConditions() {
   const [agreed, setAgreed] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
+  // ✅ App version - update this when you release new versions
+  const APP_VERSION = "1.9";
+  const LAST_UPDATED = "June 24, 2026";
+
   const handleAgree = () => {
     if (dontShowAgain) localStorage.setItem('termsAccepted', 'true');
     navigate('/profile');
@@ -149,7 +153,7 @@ export default function TermsConditions() {
             <button className="terms__btn terms__btn--decline" onClick={handleDecline}>I Decline</button>
           </div>
 
-          <p className="terms__date">Last updated: June 2026 • Version 1.0</p>
+          <p className="terms__date">Last updated: {LAST_UPDATED} • Version {APP_VERSION}</p>
         </div>
 
       </div>
