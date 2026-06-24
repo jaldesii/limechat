@@ -33,6 +33,43 @@ $font: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
     padding: 40px 32px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
     border: 1px solid var(--border-primary, #e4e4e7);
+    position: relative; // ✅ Added for home button positioning
+  }
+
+  // ✅ Home Button
+  &__home-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--bg-tertiary, #f4f4f5);
+    border: 1px solid var(--border-primary, #e4e4e7);
+    border-radius: 10px;
+    color: var(--text-secondary, #52525b);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: $font;
+    cursor: pointer;
+    @include transition;
+    
+    svg {
+      flex-shrink: 0;
+    }
+    
+    &:hover {
+      background: var(--lime-light, #ecfccb);
+      border-color: var(--lime, #84cc16);
+      color: var(--lime-dark, #65a30d);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba($lime, 0.15);
+    }
+    
+    &:active {
+      transform: translateY(0);
+    }
   }
 
   &__brand {

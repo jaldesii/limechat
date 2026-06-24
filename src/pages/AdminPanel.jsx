@@ -14,15 +14,14 @@ export default function AdminPanel() {
   const [users, setUsers] = useState([]);
   const [activeChats, setActiveChats] = useState([]);
   const [groups, setGroups] = useState([]);
-  const [stats, setStats] = useState({ totalVisitors: 0, totalMatches: 0, activeNow: 0, waitingNow: 0 });
+  const [bannedList, setBannedList] = useState([]);
+  const [stats, setStats] = useState({ totalVisitors: 0, totalMatches: 0, activeNow: 0, waitingNow: 0, bannedCount: 0 });
   const [selectedTab, setSelectedTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState("");
   const [announcement, setAnnouncement] = useState("");
   const [announceDuration, setAnnounceDuration] = useState(5);
   const [currentAnnouncement, setCurrentAnnouncement] = useState(null);
   const [showAnnounceForm, setShowAnnounceForm] = useState(false);
-  
-  // ✅ Stats states
   const [deviceStats, setDeviceStats] = useState({ mobile: 0, desktop: 0, tablet: 0 });
   const [locationStats, setLocationStats] = useState([]);
   const [peakHours, setPeakHours] = useState([]);
@@ -48,11 +47,11 @@ export default function AdminPanel() {
         totalVisitors: data.totalVisitors || 0,
         totalMatches: data.totalMatches || 0,
         activeNow: data.activeNow || 0,
-        waitingNow: data.waitingNow || 0
+        waitingNow: data.waitingNow || 0,
+        bannedCount: data.bannedCount || 0
       });
       setCurrentAnnouncement(data.announcement || null);
       
-      // ✅ Calculate device stats
       const devices = { mobile: 0, desktop: 0, tablet: 0 };
       (data.users || []).forEach(u => {
         const ua = u.userAgent || '';
@@ -62,7 +61,6 @@ export default function AdminPanel() {
       });
       setDeviceStats(devices);
       
-      // ✅ Calculate location stats
       const locMap = {};
       (data.users || []).forEach(u => {
         if (u.location && u.location !== 'Unknown') {
@@ -75,7 +73,6 @@ export default function AdminPanel() {
         .slice(0, 10);
       setLocationStats(locArray);
       
-      // ✅ Calculate peak hours (last 24 hours)
       const hours = Array(24).fill(0);
       (data.users || []).forEach(u => {
         if (u.joinedAt) {
@@ -86,6 +83,10 @@ export default function AdminPanel() {
       setPeakHours(hours);
     });
 
+    adminSocket.on('adminBannedList', (data) => {
+      setBannedList(data.banned || []);
+    });
+
     adminSocket.on('adminNewUser', () => adminSocket.emit('adminGetData'));
     adminSocket.on('adminMatch', () => adminSocket.emit('adminGetData'));
     adminSocket.on('adminChatEnded', (d) => setActiveChats(prev => prev.filter(c => c.roomId !== d.roomId)));
@@ -94,6 +95,7 @@ export default function AdminPanel() {
     return () => {
       adminSocket.off('adminUpdate'); adminSocket.off('adminNewUser');
       adminSocket.off('adminMatch'); adminSocket.off('adminChatEnded');
+      adminSocket.off('adminBannedList');
       clearInterval(interval);
     };
   }, []);
@@ -148,6 +150,7 @@ export default function AdminPanel() {
           <span className="admin__stat-inline"><b>{stats.totalMatches}</b> matches</span>
           <span className="admin__stat-inline"><b>{stats.totalVisitors}</b> visitors</span>
           <span className="admin__stat-inline"><b>{groups.length}</b> groups</span>
+          <span className="admin__stat-inline"><b>{stats.bannedCount}</b> banned</span>
           <button className="admin__btn" onClick={() => adminSocket.emit('adminClearStale')}>clear</button>
           <button className="admin__btn" onClick={() => adminSocket.emit('adminGetData')}>refresh</button>
         </div>
@@ -175,9 +178,8 @@ export default function AdminPanel() {
         ) : (<button className="admin__announce-btn" onClick={() => setShowAnnounceForm(true)}>📢 New Announcement</button>)}
       </div>
 
-      {/* ✅ Stats Dashboard */}
+      {/* Stats Dashboard */}
       <div className="admin__dashboard">
-        {/* Device Stats */}
         <div className="admin__card">
           <h4 className="admin__card-title">Device Stats</h4>
           <div className="admin__device-bars">
@@ -199,7 +201,6 @@ export default function AdminPanel() {
           </div>
         </div>
 
-        {/* Location Heatmap */}
         <div className="admin__card">
           <h4 className="admin__card-title">📍 Top Locations</h4>
           <div className="admin__location-list">
@@ -215,7 +216,6 @@ export default function AdminPanel() {
           </div>
         </div>
 
-        {/* Peak Hours Graph */}
         <div className="admin__card admin__card--full">
           <h4 className="admin__card-title">⏰ Peak Hours (Last 24h)</h4>
           <div className="admin__peak-chart">
@@ -237,9 +237,19 @@ export default function AdminPanel() {
 
       {/* Users Table */}
       <table className="admin__table">
-        <thead><tr><th>user</th><th>location</th><th>status</th><th>room</th><th>active</th></tr></thead>
-        <tbody>{filtered.length === 0 ? (<tr><td colSpan={5} className="admin__empty">— no users —</td></tr>) : filtered.map((u, i) => (<tr key={u.socketId + i}><td><span className="admin__user"><span className="admin__user-dot" style={{ background: u.status === 'connected' ? '#84cc16' : u.status === 'waiting' ? '#fbbf24' : '#d4d4d8' }} />{u.name || 'Anonymous'}</span></td><td className="admin__muted">{u.location || '—'}</td><td>{u.status === 'connected' ? 'active' : u.status === 'waiting' ? 'waiting' : 'offline'}</td><td className="admin__mono">{u.roomId ? `#${u.roomId.slice(-6)}` : '—'}</td><td className="admin__muted">{timeAgo(u.lastActive)}</td></tr>))}</tbody>
+        <thead><tr><th>user</th><th>location</th><th>status</th><th>room</th><th>active</th><th>action</th></tr></thead>
+        <tbody>{filtered.length === 0 ? (<tr><td colSpan={6} className="admin__empty">— no users —</td></tr>) : filtered.map((u, i) => (<tr key={u.socketId + i}><td><span className="admin__user"><span className="admin__user-dot" style={{ background: u.status === 'connected' ? '#84cc16' : u.status === 'waiting' ? '#fbbf24' : '#d4d4d8' }} />{u.name || 'Anonymous'}</span></td><td className="admin__muted">{u.location || '—'}</td><td>{u.status === 'connected' ? 'active' : u.status === 'waiting' ? 'waiting' : 'offline'}</td><td className="admin__mono">{u.roomId ? `#${u.roomId.slice(-6)}` : '—'}</td><td className="admin__muted">{timeAgo(u.lastActive)}</td><td><button className="admin__ban-btn" onClick={() => { if (window.confirm(`Ban ${u.name || 'Anonymous'}?`)) { adminSocket.emit('adminBanUser', { clientId: u.clientId, socketId: u.socketId }); } }} title="Ban user">🚫 Ban</button></td></tr>))}</tbody>
       </table>
+
+      {/* Banned Users */}
+      <div className="admin__section-title">banned users ({bannedList.length})</div>
+      <button className="admin__btn" onClick={() => adminSocket.emit('adminGetBanned')} style={{ marginBottom: 10 }}>Refresh Banned List</button>
+      {bannedList.length > 0 && (
+        <table className="admin__table">
+          <thead><tr><th>clientId</th><th>action</th></tr></thead>
+          <tbody>{bannedList.map((id, i) => (<tr key={i}><td className="admin__mono">{id}</td><td><button className="admin__unban-btn" onClick={() => { if (window.confirm(`Unban ${id}?`)) { adminSocket.emit('adminUnbanUser', { clientId: id }); } }}>✅ Unban</button></td></tr>))}</tbody>
+        </table>
+      )}
 
       {/* Groups */}
       {groups.length > 0 && (<><div className="admin__section-title">group chats ({groups.length})</div><table className="admin__table"><thead><tr><th>group</th><th>users</th><th>created</th></tr></thead><tbody>{groups.map((g, i) => (<tr key={g.id || i}><td><span className="admin__user"><span className="admin__user-dot" style={{ background: '#a855f7' }} />{g.name}</span></td><td className="admin__muted">{g.users} / {g.maxUsers || 10} members</td><td className="admin__muted">active</td></tr>))}</tbody></table></>)}

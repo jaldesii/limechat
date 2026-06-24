@@ -281,6 +281,43 @@ $font: 'Poppins', sans-serif;
   outline: none;
   
   &:focus { border-color: $lime; }
+  // Ban button
+&__ban-btn {
+  background: none;
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: $font;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    background: #ef4444;
+    color: white;
+  }
+}
+
+// Unban button
+&__unban-btn {
+  background: none;
+  border: 1px solid #10b981;
+  color: #10b981;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: $font;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  
+  &:hover {
+    background: #10b981;
+    color: white;
+  }
+}
 }
 
 &__announce-timer {

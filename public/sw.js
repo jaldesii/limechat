@@ -36,15 +36,26 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch - Network first, fallback to cache
+// ✅ FIXED: Fetch — Skip Socket.io & API requests
 self.addEventListener('fetch', (event) => {
+  const url = event.request.url;
+  
+  // ✅ Don't intercept Socket.io or API requests
+  if (url.includes('/socket.io/') || url.includes('/status')) {
+    return; // Let browser handle normally
+  }
+  
+  // ✅ Network first for everything else
   event.respondWith(
     fetch(event.request)
       .then(response => {
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, responseClone);
-        });
+        // Only cache GET requests
+        if (event.request.method === 'GET') {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseClone);
+          });
+        }
         return response;
       })
       .catch(() => {

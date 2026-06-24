@@ -15,7 +15,7 @@ export default function WaitingRoom() {
 
   useEffect(() => {
     const userString = localStorage.getItem('user');
-    if (!userString) { navigate('/'); return; }
+    if (!userString) { navigate('/profile'); return; }
 
     try {
       const user = JSON.parse(userString);
@@ -25,14 +25,14 @@ export default function WaitingRoom() {
         // Request group list
         socket.emit('getGroups');
         socket.on('groupList', (data) => setGroups(data.groups || []));
-      socket.on('groupJoined', (data) => {
-    // ✅ Set flag na group chat ito
-    sessionStorage.setItem('isGroupChat', 'true');
-    localStorage.setItem('roomId', data.roomId);
-    localStorage.setItem('partner', JSON.stringify({ name: 'Group Chat', location: `${data.userCount} users` }));
-    hasLeftRef.current = true;
-    navigate(`/chat/${data.roomId}`);
-});
+        socket.on('groupJoined', (data) => {
+          // ✅ Set flag na group chat ito
+          sessionStorage.setItem('isGroupChat', 'true');
+          localStorage.setItem('roomId', data.roomId);
+          localStorage.setItem('partner', JSON.stringify({ name: 'Group Chat', location: `${data.userCount} users` }));
+          hasLeftRef.current = true;
+          navigate(`/chat/${data.roomId}`);
+        });
       } else {
         // 1v1 mode
         socket.emit('joinQueue', user);
@@ -47,18 +47,30 @@ export default function WaitingRoom() {
       const timer = setInterval(() => setSearchTime(prev => prev + 1), 1000);
 
       window.history.pushState(null, '', window.location.href);
-      const handlePopState = () => { window.history.pushState(null, '', window.location.href); if (!hasLeftRef.current) setShowLeaveModal(true); };
+      const handlePopState = () => { 
+        window.history.pushState(null, '', window.location.href); 
+        if (!hasLeftRef.current) setShowLeaveModal(true); 
+      };
       window.addEventListener('popstate', handlePopState);
-      const handleBeforeUnload = (e) => { if (!hasLeftRef.current) { e.preventDefault(); e.returnValue = ''; } };
+      const handleBeforeUnload = (e) => { 
+        if (!hasLeftRef.current) { 
+          e.preventDefault(); 
+          e.returnValue = ''; 
+        } 
+      };
       window.addEventListener('beforeunload', handleBeforeUnload);
 
       return () => {
-        socket.off('matched'); socket.off('groupList'); socket.off('groupJoined');
+        socket.off('matched'); 
+        socket.off('groupList'); 
+        socket.off('groupJoined');
         clearInterval(timer);
         window.removeEventListener('popstate', handlePopState);
         window.removeEventListener('beforeunload', handleBeforeUnload);
       };
-    } catch (error) { navigate('/'); }
+    } catch (error) { 
+      navigate('/'); 
+    }
   }, [navigate, chatMode]);
 
   const joinGroup = (groupId) => {
@@ -75,11 +87,15 @@ export default function WaitingRoom() {
     if (hasLeftRef.current) return;
     hasLeftRef.current = true;
     socket.emit('leaveQueue');
-    localStorage.removeItem('user');
-    navigate('/', { replace: true });
+    // ✅ FIXED: Don't delete user data - keep it for profile page
+    // localStorage.removeItem('user'); // ❌ REMOVED THIS LINE
+    navigate('/profile', { replace: true });
   };
 
-  const stayInQueue = () => { setShowLeaveModal(false); window.history.pushState(null, '', window.location.href); };
+  const stayInQueue = () => { 
+    setShowLeaveModal(false); 
+    window.history.pushState(null, '', window.location.href); 
+  };
 
   return (
     <div className="waiting-room">

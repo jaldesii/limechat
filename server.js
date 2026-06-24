@@ -30,14 +30,17 @@ let expireTimeout = null;
 let groups = [];
 
 // ✅ Anti-Spam: Rate limiting
-const messageTimestamps = {};      // Track message times per user
-const userMessageHistory = {};     // Track last messages per user
-const suspiciousUsers = new Set(); // Flagged users
+const messageTimestamps = {};
+const userMessageHistory = {};
+const suspiciousUsers = new Set();
+
+// ✅ Ban System
+const bannedUsers = new Set();
+const bannedIPs = new Set();
 
 setInterval(() => {
     const now = Date.now();
     
-    // Clean up old rate limit data every 5 minutes
     for (const key in messageTimestamps) {
         messageTimestamps[key] = messageTimestamps[key].filter(t => now - t < 10000);
         if (messageTimestamps[key].length === 0) delete messageTimestamps[key];
@@ -68,69 +71,57 @@ app.get("/status", (req, res) => res.json({
     waitingNow: allUsers.filter(u => u.status === 'waiting').length,
     announcement: currentAnnouncement,
     groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length })),
-    suspiciousUsers: suspiciousUsers.size
+    suspiciousUsers: suspiciousUsers.size,
+    bannedCount: bannedUsers.size
 }));
 
-// ✅ Helper: Remove user from group
 function leaveGroup(socketId) {
     groups.forEach(group => {
         const index = group.users.findIndex(u => u.socketId === socketId);
         if (index !== -1) {
             const user = group.users[index];
             group.users.splice(index, 1);
-            
             const memberList = group.users.map(u => ({ socketId: u.socketId, name: u.name, online: true, location: '' }));
             io.to(group.id).emit('groupUserList', { roomId: group.id, members: memberList });
             io.to(group.id).emit('groupUserLeft', { roomId: group.id, socketId });
-            
             io.to(group.id).emit('receiveMessage', { type: 'system', message: `${user.name} left the group`, senderName: 'System', timestamp: new Date().toISOString() });
-            if (group.users.length === 0) {
-                groups = groups.filter(g => g.id !== group.id);
-            }
+            if (group.users.length === 0) groups = groups.filter(g => g.id !== group.id);
         }
     });
     io.emit('groupList', { groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length, maxUsers: g.maxUsers })) });
 }
 
-// ✅ Helper: Get member list for a group
 function getGroupMemberList(group) {
     return group.users.map(u => ({ socketId: u.socketId, name: u.name, online: true, location: '' }));
 }
 
-// ✅ Anti-Spam Function
 function isSpamming(socketId, message) {
     const now = Date.now();
     
-    // Initialize if new user
     if (!messageTimestamps[socketId]) messageTimestamps[socketId] = [];
     if (!userMessageHistory[socketId]) userMessageHistory[socketId] = { messages: [], lastActive: now };
     
-    // Update last active
     userMessageHistory[socketId].lastActive = now;
-    
-    // Clean old timestamps (older than 3 seconds)
     messageTimestamps[socketId] = messageTimestamps[socketId].filter(t => now - t < 3000);
     
-    // ✅ RULE 1: Max 3 messages per 3 seconds
-    if (messageTimestamps[socketId].length >= 3) return 'Too fast! Slow down.';
+    if (messageTimestamps[socketId].length >= 3) {
+        console.log(`🚫 Rate limit: ${socketId}`);
+        return 'Too fast! Slow down.';
+    }
     
-    // ✅ RULE 2: Max message length 1000 chars
-    if (message && message.length > 1000) return 'Message too long.';
-    
-    // ✅ RULE 3: Detect repeated identical messages (spam pattern)
     const history = userMessageHistory[socketId].messages;
     const repeated = history.filter(m => m === message).length;
-    if (repeated >= 2) {
+    if (repeated >= 1) {
         suspiciousUsers.add(socketId);
+        console.log(`🚫 Duplicate spam: ${socketId}`);
         return 'Suspicious activity detected.';
     }
     
-    // Add timestamp and message to history
     messageTimestamps[socketId].push(now);
     history.push(message);
-    if (history.length > 10) history.shift(); // Keep last 10 messages only
+    if (history.length > 10) history.shift();
     
-    return null; // No spam detected
+    return null;
 }
 
 io.on("connection", (socket) => {
@@ -174,6 +165,56 @@ io.on("connection", (socket) => {
             socket.broadcast.emit('clearAnnouncement');
             broadcastAdminUpdate();
         });
+        
+        // ✅ BAN USER (HARD BAN — IP + clientId)
+        socket.on('adminBanUser', (data) => {
+            const targetId = data.clientId;
+            if (targetId) {
+                bannedUsers.add(targetId);
+                
+                const targetUser = allUsers.find(u => u.clientId === targetId);
+                const targetSocket = targetUser ? io.sockets.sockets.get(targetUser.socketId) : null;
+                
+                // ✅ Ban IP
+                if (targetSocket) {
+                    const ip = targetSocket.handshake.headers['x-forwarded-for'] || 
+                               targetSocket.handshake.address || '';
+                    if (ip && ip !== 'unknown') {
+                        bannedIPs.add(ip);
+                        console.log(`🚫 IP banned: ${ip}`);
+                    }
+                    targetSocket.emit('banned', 'You have been permanently banned from LimeChat.');
+                    targetSocket.disconnect(true);
+                }
+                
+                // ✅ Remove from all data
+                waitingUsers = waitingUsers.filter(u => u.clientId !== targetId);
+                if (targetUser) {
+                    matchedUsers.delete(targetUser.socketId);
+                    leaveGroup(targetUser.socketId);
+                }
+                allUsers = allUsers.filter(u => u.clientId !== targetId);
+                
+                console.log(`🚫 User banned: ${targetId}`);
+                broadcastAdminUpdate();
+            }
+        });
+        
+        // ✅ UNBAN USER
+        socket.on('adminUnbanUser', (data) => {
+            bannedUsers.delete(data.clientId);
+            console.log(`✅ User unbanned: ${data.clientId}`);
+            broadcastAdminUpdate();
+        });
+        
+        // ✅ GET BANNED LIST
+        socket.on('adminGetBanned', () => {
+            socket.emit('adminBannedList', {
+                banned: [...bannedUsers],
+                bannedIPs: [...bannedIPs]
+            });
+        });
+        
         socket.on('disconnect', () => console.log("🔑 Admin disconnected:", socket.id));
         return;
     }
@@ -182,6 +223,17 @@ io.on("connection", (socket) => {
     // NORMAL USER
     // ============================================
     const clientId = socket.handshake.query.clientId || socket.id;
+    const clientIP = socket.handshake.address || socket.handshake.headers['x-forwarded-for'] || 'unknown';
+    const storedBanned = socket.handshake.query.banned === 'true';
+    
+    // ✅ BAN CHECK — clientId + IP + localStorage
+ if (bannedUsers.has(clientId) || bannedIPs.has(clientIP) || storedBanned) {
+        console.log(`🚫 Banned user rejected: ${clientId} (IP: ${clientIP})`);
+        socket.emit('banned', 'You have been permanently banned from LimeChat.');
+        socket.disconnect(true);
+        return;
+    }
+    
     waitingUsers = waitingUsers.filter(u => u.socketId !== socket.id);
     const existing = allUsers.find(u => u.clientId === clientId);
     
@@ -201,9 +253,6 @@ io.on("connection", (socket) => {
     }
     broadcastAdminUpdate();
 
-    // ============================================
-    // 1v1 MATCHING
-    // ============================================
     socket.on("joinQueue", (user) => {
         updateUser(socket.id, { name: user.name, location: user.location, status: 'waiting', lastActive: new Date().toISOString() });
         if (matchedUsers.has(socket.id)) return;
@@ -240,9 +289,6 @@ io.on("connection", (socket) => {
 
     socket.on("leaveQueue", () => { waitingUsers = waitingUsers.filter(u => u.socketId !== socket.id); updateUser(socket.id, { status: 'disconnected' }); broadcastAdminUpdate(); });
 
-    // ============================================
-    // GROUP CHAT
-    // ============================================
     socket.on('getGroups', () => {
         socket.emit('groupList', { groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length, maxUsers: g.maxUsers })) });
     });
@@ -253,11 +299,9 @@ io.on("connection", (socket) => {
         groups.push(group);
         socket.join(groupId);
         updateUser(socket.id, { status: 'connected', roomId: groupId });
-        
         const memberList = getGroupMemberList(group);
         socket.emit('groupUserList', { roomId: groupId, members: memberList });
         socket.emit('groupJoined', { roomId: groupId, userCount: 1 });
-        
         io.emit('groupList', { groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length, maxUsers: g.maxUsers })) });
         broadcastAdminUpdate();
     });
@@ -269,15 +313,12 @@ io.on("connection", (socket) => {
             group.users.push({ socketId: socket.id, name: data.user.name });
             socket.join(data.groupId);
             updateUser(socket.id, { status: 'connected', roomId: data.groupId });
-            
             const memberList = getGroupMemberList(group);
             socket.emit('groupUserList', { roomId: data.groupId, members: memberList });
             socket.emit('groupJoined', { roomId: data.groupId, userCount: group.users.length });
-            
             socket.to(data.groupId).emit('groupUserJoined', { roomId: data.groupId, user: { socketId: socket.id, name: data.user.name, online: true, location: '' } });
             socket.to(data.groupId).emit('groupUserList', { roomId: data.groupId, members: memberList });
             socket.to(data.groupId).emit('receiveMessage', { type: 'system', message: `${data.user.name} joined the group`, senderName: 'System', timestamp: new Date().toISOString() });
-            
             io.emit('groupList', { groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length, maxUsers: g.maxUsers })) });
             broadcastAdminUpdate();
         }
@@ -291,7 +332,6 @@ io.on("connection", (socket) => {
         }
     });
 
-    // ✅ EDIT GROUP NAME
     socket.on("editGroupName", (data) => {
         const group = groups.find(g => g.id === data.roomId);
         if (group) {
@@ -302,9 +342,6 @@ io.on("connection", (socket) => {
         }
     });
 
-    // ============================================
-    // SHARED EVENTS
-    // ============================================
     socket.on("joinRoom", (roomId) => { 
         socket.join(roomId); 
         updateUser(socket.id, { roomId, lastActive: new Date().toISOString() }); 
@@ -312,41 +349,30 @@ io.on("connection", (socket) => {
         if (currentAnnouncement) socket.emit('announcement', currentAnnouncement); 
     });
     
-    // ✅ UPDATED: sendMessage with anti-spam
     socket.on("sendMessage", (data) => {
-        // Check for spam
-        const spamReason = isSpamming(socket.id, data.message);
-        if (spamReason) {
-            socket.emit('spamWarning', spamReason);
-            return; // Block the message
-        }
+        if (data.message) data.message = data.message.trim();
         
-        // Limit message length
         if (data.message && data.message.length > 1000) {
             data.message = data.message.slice(0, 1000) + '...';
         }
         
-        socket.to(data.roomId).emit("receiveMessage", data);
+        const spamReason = isSpamming(socket.id, data.message);
+        if (spamReason) {
+            socket.emit('spamWarning', spamReason);
+            return;
+        }
+        
+        io.to(data.roomId).emit("receiveMessage", data);
         updateUser(socket.id, { lastActive: new Date().toISOString() });
     });
     
     socket.on("typing", (roomId) => { socket.to(roomId).emit("partnerTyping"); });
     socket.on("messageReaction", (data) => { socket.to(data.roomId).emit("messageReaction", data); });
+    socket.on("editMessage", (data) => { socket.to(data.roomId).emit("messageEdited", data); });
+    socket.on("deleteMessage", (data) => { socket.to(data.roomId).emit("messageDeleted", data); });
 
-    // ✅ EDIT MESSAGE
-    socket.on("editMessage", (data) => {
-        socket.to(data.roomId).emit("messageEdited", data);
-    });
-
-    // ✅ DELETE MESSAGE
-    socket.on("deleteMessage", (data) => {
-        socket.to(data.roomId).emit("messageDeleted", data);
-    });
-
-    // ✅ leaveRoom
     socket.on("leaveRoom", (data) => {
         const isGroupRoom = groups.find(g => g.id === data.roomId);
-        
         if (isGroupRoom) {
             leaveGroup(socket.id);
             socket.leave(data.roomId);
@@ -361,7 +387,6 @@ io.on("connection", (socket) => {
         broadcastAdminUpdate();
     });
 
-    // ✅ disconnect
     socket.on("disconnect", () => {
         waitingUsers = waitingUsers.filter(u => u.socketId !== socket.id); matchedUsers.delete(socket.id);
         updateUser(socket.id, { status: 'disconnected', lastActive: new Date().toISOString() });
@@ -381,19 +406,13 @@ io.on("connection", (socket) => {
     });
 });
 
-// ============================================
-// HELPERS
-// ============================================
 function getAdminSockets() { const a = []; io.sockets.sockets.forEach(s => { if (s.handshake.query.role === 'admin') a.push(s.id); }); return a; }
 function broadcastToAdmins(e, d) { getAdminSockets().forEach(id => io.to(id).emit(e, d)); }
 function updateUser(sid, upd) { const i = allUsers.findIndex(u => u.socketId === sid); if (i !== -1) allUsers[i] = { ...allUsers[i], ...upd }; }
 function getActiveChatsList() { const c = []; activeRooms.forEach((r, rid) => { if (r.users.length >= 2) c.push({ roomId: rid, user1: r.users[0]?.name || '?', user2: r.users[1]?.name || '?', startedAt: new Date(r.createdAt).toISOString() }); }); return c; }
-function buildAdminData() { return { users: allUsers.filter(u => (u.status === 'connected' && u.roomId) || u.status === 'waiting' || (Date.now() - new Date(u.lastActive).getTime()) < 60000), activeChats: getActiveChatsList(), totalVisitors: uniqueVisitors.size, totalMatches, activeNow: allUsers.filter(u => u.status === 'connected' && u.roomId).length, waitingNow: allUsers.filter(u => u.status === 'waiting').length, announcement: currentAnnouncement, groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length })), suspiciousUsers: suspiciousUsers.size }; }
+function buildAdminData() { return { users: allUsers.filter(u => (u.status === 'connected' && u.roomId) || u.status === 'waiting' || (Date.now() - new Date(u.lastActive).getTime()) < 60000), activeChats: getActiveChatsList(), totalVisitors: uniqueVisitors.size, totalMatches, activeNow: allUsers.filter(u => u.status === 'connected' && u.roomId).length, waitingNow: allUsers.filter(u => u.status === 'waiting').length, announcement: currentAnnouncement, groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length })), suspiciousUsers: suspiciousUsers.size, bannedCount: bannedUsers.size }; }
 function broadcastAdminUpdate() { broadcastToAdmins('adminUpdate', buildAdminData()); }
 
-// ============================================
-// PRODUCTION
-// ============================================
 if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, 'dist')));
     app.get('/*', (req, res) => { res.sendFile(path.join(__dirname, 'dist', 'index.html')); });
@@ -402,8 +421,6 @@ if (process.env.NODE_ENV === 'production') {
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`👥 Group chat enabled`);
-    console.log(`✏️ Message edit/delete enabled`);
-    console.log(`📝 Group name edit enabled`);
     console.log(`🛡️ Anti-spam protection enabled`);
+    console.log(`🚫 Hard ban system enabled (IP + clientId + localStorage)`);
 });
