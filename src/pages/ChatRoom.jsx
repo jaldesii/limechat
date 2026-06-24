@@ -78,12 +78,22 @@ export default function ChatRoom() {
   useEffect(() => { const t = setTimeout(() => setIsLoading(false), 800); return () => clearTimeout(t); }, []);
   useEffect(() => { const h = () => setContextMenu(null); if (contextMenu) { document.addEventListener('click', h); return () => document.removeEventListener('click', h); } }, [contextMenu]);
 
+  // ✅ Add/remove announcement class on body
+  useEffect(() => {
+    if (announcement) {
+      document.body.classList.add('has-announcement');
+    } else {
+      document.body.classList.remove('has-announcement');
+    }
+    return () => {
+      document.body.classList.remove('has-announcement');
+    };
+  }, [announcement]);
+
   const resizeTextarea = useCallback(() => { const ta = textareaRef.current; if (!ta) return; ta.style.height = 'auto'; ta.style.overflowY = 'hidden'; const nh = Math.min(Math.max(ta.scrollHeight, 44), 120); ta.style.height = nh + 'px'; ta.style.overflowY = ta.scrollHeight > 120 ? 'auto' : 'hidden'; }, []);
   useEffect(() => { resizeTextarea(); }, [message, resizeTextarea]);
 
-  // ✅ Auto-resize the edit textarea so it grows/shrinks based on how long
-  // the message being edited is (short message -> small box, long message -> tall box),
-  // instead of staying a fixed size for every message.
+  // ✅ Auto-resize the edit textarea
   const resizeEditTextarea = useCallback(() => { const ta = editTextareaRef.current; if (!ta) return; ta.style.height = 'auto'; const nh = Math.min(Math.max(ta.scrollHeight, 36), 200); ta.style.height = nh + 'px'; ta.style.overflowY = ta.scrollHeight > 200 ? 'auto' : 'hidden'; }, []);
   useEffect(() => { if (editingMessage) resizeEditTextarea(); }, [editingMessage, resizeEditTextarea]);
 
@@ -119,11 +129,27 @@ export default function ChatRoom() {
     if (!us || !ps) { navigate('/profile'); return; } 
     const user = JSON.parse(us), partnerData = JSON.parse(ps); 
     setMyInfo(user); setPartner(partnerData); 
+    
+    // ✅ Set up announcement listeners BEFORE joining room
+    socket.off('announcement');
+    socket.off('clearAnnouncement');
+    
+    socket.on('announcement', (d) => {
+      console.log('📢 Announcement received in chat:', d);
+      setAnnouncement(d);
+    });
+    
+    socket.on('clearAnnouncement', () => {
+      console.log('🗑️ Announcement cleared in chat');
+      setAnnouncement(null);
+    });
+    
     socket.emit('joinRoom', roomId); 
     setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000);
     const ig = sessionStorage.getItem('isGroupChat') === 'true';
     if (ig) { setIsGroupChat(true); sessionStorage.removeItem('isGroupChat'); socket.emit('getGroupMembers', { roomId }); }
-    const events = ['receiveMessage','partnerTyping','partnerDisconnected','partnerReconnected','partnerLeft','partnerJoined','announcement','clearAnnouncement','messageReaction','groupUserList','groupUserJoined','groupUserLeft','groupJoined','messageEdited','messageDeleted','groupNameUpdated','spamWarning']; 
+    
+    const events = ['receiveMessage','partnerTyping','partnerDisconnected','partnerReconnected','partnerLeft','partnerJoined','messageReaction','groupUserList','groupUserJoined','groupUserLeft','groupJoined','messageEdited','messageDeleted','groupNameUpdated','spamWarning']; 
     events.forEach(e => socket.off(e)); 
     
     socket.on('receiveMessage', (d) => { setMessages(p => { if (p.find(m => m.messageId === d.messageId)) return p; const isMine = d.sender === socket.id; return [...p, { type:'message', text:d.message, sender:d.sender, senderName:isMine?'You':d.senderName, timestamp:d.timestamp, replyTo:d.replyTo||null, isQuoted:!!d.replyTo, messageId:d.messageId }]; }); if (d.sender !== socket.id) showNotification(d.senderName, d.message); });
@@ -141,15 +167,21 @@ export default function ChatRoom() {
     socket.on('messageEdited', (d) => { setMessages(p => p.map(m => m.messageId === d.messageId ? { ...m, text: d.newText, edited: true } : m)); });
     socket.on('messageDeleted', (d) => { setMessages(p => p.filter(m => m.messageId !== d.messageId)); });
     socket.on('groupNameUpdated', (d) => { if (d.roomId === roomId) { setGroupName(d.name); setPartner(p => ({ ...p, name: d.name })); } });
-    socket.on('announcement', (d) => setAnnouncement(d)); 
-    socket.on('clearAnnouncement', () => setAnnouncement(null)); 
+    
     window.history.pushState(null, '', window.location.href); 
     const pop = () => { window.history.pushState(null, '', window.location.href); if (!hasLeftRef.current) setShowLeaveModal(true); }; 
     const unload = (e) => { if (!hasLeftRef.current) { e.preventDefault(); e.returnValue = ''; } }; 
     const kd = (e) => { if (!hasLeftRef.current && (e.key==='F5'||(e.ctrlKey&&e.key==='r'))) { e.preventDefault(); setShowLeaveModal(true); } }; 
     window.addEventListener('popstate', pop); window.addEventListener('beforeunload', unload); window.addEventListener('keydown', kd); 
     scrollToBottom(false); 
-    return () => { events.forEach(e => socket.off(e)); window.removeEventListener('popstate', pop); window.removeEventListener('beforeunload', unload); window.removeEventListener('keydown', kd); }; 
+    return () => { 
+      events.forEach(e => socket.off(e)); 
+      socket.off('announcement');
+      socket.off('clearAnnouncement');
+      window.removeEventListener('popstate', pop); 
+      window.removeEventListener('beforeunload', unload); 
+      window.removeEventListener('keydown', kd); 
+    }; 
   }, [roomId, navigate, showNotification]);
   
   useEffect(() => { const c = messagesContainerRef.current; if (!c) return; const h = () => { checkIfAtBottom(); setContextMenu(null); }; c.addEventListener('scroll', h); return () => c.removeEventListener('scroll', h); }, [checkIfAtBottom]);
@@ -165,79 +197,95 @@ export default function ChatRoom() {
   if (isLoading) return (<div className="chat-room"><div className="chat-header"><div className="chat-header__partner-info"><div className="chat-header__avatar skeleton-pulse" /><div className="chat-header__details"><div className="skeleton-line skeleton-line--name" /><div className="skeleton-line skeleton-line--location" /></div></div></div><div className="chat-messages">{[1,2,3,4].map(i => (<div key={i} className={`message ${i%2===0?'message--sent':'message--received'}`}><div className="skeleton-line skeleton-line--sender" /><div className={`skeleton-bubble ${i%2===0?'skeleton-bubble--sent':'skeleton-bubble--received'}`} /></div>))}</div><div className="chat-input"><div className="chat-input__wrapper"><div className="chat-input__field skeleton-pulse" /><div className="chat-input__send-btn skeleton-pulse" /></div></div></div>);
 
   return (
-    <div className="chat-room">
-      <Confetti active={showConfetti} />
-      {toast && (<div className={`toast toast--${toast.type}`}><span>{toast.message}</span><button className="toast__close" onClick={() => setToast(null)}>✕</button></div>)}
-      {confirmModal && (<div className="leave-modal-overlay" onClick={() => setConfirmModal(null)}><div className="leave-modal" onClick={(e) => e.stopPropagation()}><p className="leave-modal__text">{confirmModal.message}</p><div className="leave-modal__actions"><button className="leave-modal__btn leave-modal__btn--stay" onClick={confirmModal.onConfirm}>Yes</button><button className="leave-modal__btn leave-modal__btn--leave" onClick={() => setConfirmModal(null)}>Cancel</button></div></div></div>)}
-      {showLeaveModal && (<div className="leave-modal-overlay"><div className="leave-modal"><p className="leave-modal__text">You're chatting with <strong>{partner?.name}</strong></p><div className="leave-modal__warning"><p>If you leave, {partner?.name} will be notified.</p></div><div className="leave-modal__actions"><button className="leave-modal__btn leave-modal__btn--stay" onClick={()=>{setShowLeaveModal(false);window.history.pushState(null,'',window.location.href)}}>Stay</button><button className="leave-modal__btn leave-modal__btn--leave" onClick={leave}>Leave</button></div></div></div>)}
-      {showSkipModal && (<div className="leave-modal-overlay"><div className="leave-modal"><p className="leave-modal__text">Skip this conversation?</p><div className="leave-modal__warning"><p>You'll be matched with someone new.</p></div><div className="leave-modal__actions"><button className="leave-modal__btn leave-modal__btn--stay" onClick={()=>{setShowSkipModal(false);window.history.pushState(null,'',window.location.href)}}>Stay</button><button className="leave-modal__btn leave-modal__btn--skip" onClick={skip}>Skip & Find New</button></div></div></div>)}
-      <div className="chat-header"><div className="chat-header__partner-info"><div className="chat-header__avatar">{init(partner?.name)}</div><div className="chat-header__details"><p className="chat-header__name"><span className={`chat-header__status chat-header__status--${connectionStatus}`} />{isGroupChat?(groupName||'Group Chat'):partner?.name||'Unknown'}{isGroupChat&&<button className="chat-header__edit-group" onClick={()=>{setGroupName(partner?.name||'Group Chat');setShowGroupNameEdit(true)}}><EditIcon/></button>}</p><p className="chat-header__location">{isGroupChat?`${groupMembers.length} members`:partner?.location||''}</p></div></div><div className="chat-header__actions">{isGroupChat&&<button className="chat-header__members-btn" onClick={()=>setShowMembersPanel(!showMembersPanel)}><MembersIcon/> {groupMembers.length}</button>}<button className="chat-header__spacing-btn" onClick={toggleSpacing}><SpacingIcon compact={spacing==='compact'}/></button>{!partnerLeft&&<><button className="chat-header__skip-btn" onClick={()=>setShowSkipModal(true)}>Skip</button><button className="chat-header__leave-btn" onClick={()=>setShowLeaveModal(true)}>Leave</button></>}</div></div>
-      {showGroupNameEdit&&(<div className="leave-modal-overlay"><div className="leave-modal leave-modal--group-edit"><p className="leave-modal__text">Edit Group Name</p><input className="group-edit-input" value={groupName} onChange={(e)=>setGroupName(e.target.value)} onKeyDown={(e)=>e.key==='Enter'&&handleEditGroupName()} maxLength={30} autoFocus/><div className="leave-modal__actions"><button className="leave-modal__btn leave-modal__btn--stay" onClick={handleEditGroupName}>Save</button><button className="leave-modal__btn leave-modal__btn--leave" onClick={()=>setShowGroupNameEdit(false)}>Cancel</button></div></div></div>)}
-      {announcement&&(<div className="chat-announcement"><span className="chat-announcement__icon"><AnnounceIcon/></span><span className="chat-announcement__text">{announcement.text}</span>{announcement.duration>0&&announcement.expiresAt&&<AnnouncementTimer expiresAt={announcement.expiresAt}/>}{announcement.duration===0&&<span className="chat-announcement__badge"><AdminBadgeIcon/> Admin</span>}</div>)}
-      <div className="chat-main-area">
-        <div className={`chat-messages chat-messages--${spacing}`} ref={messagesContainerRef}>
-          {showScrollBtn&&(<button className="scroll-to-bottom" onClick={()=>scrollToBottom(true)}><ScrollDownIcon/> New messages</button>)}
-          {messages.length===0&&!partnerLeft&&(<div className="chat-messages__empty"><div className="chat-messages__empty-icon"><ChatIcon/></div><p className="chat-messages__empty-text">Start chatting with {isGroupChat?'the group':partner?.name}</p><p className="chat-messages__empty-subtext">Send a message to begin</p></div>)}
-          {messages.map((msg,i)=> (
-            <div key={i} className="message-wrapper">
-              {msg.type==='system'? <div className="system-message"><span className="system-message__text">{msg.text}</span></div>
-              : editingMessage?.index===i? (
-                <div className="message message--sent">
-                  <textarea
-                    ref={editTextareaRef}
-                    className="message__edit-textarea"
-                    value={editingMessage.text}
-                    onChange={(e)=>setEditingMessage({...editingMessage,text:e.target.value})}
-                    onKeyDown={(e)=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();saveEditedMessage()}if(e.key==='Escape')setEditingMessage(null)}}
-                    onFocus={(e)=>{const val=e.target.value;e.target.setSelectionRange(val.length,val.length);}}
-                    rows={1}
-                    autoFocus
-                  />
-                  <div className="message__edit-actions">
-                    <button className="message__edit-btn message__edit-btn--save" onClick={saveEditedMessage}>Save</button>
-                    <button className="message__edit-btn message__edit-btn--cancel" onClick={()=>setEditingMessage(null)}>Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                <div className={`message ${msg.senderName==="You"?'message--sent':'message--received'} ${msg.isQuoted?'message--quoted':''} ${contextMenu?.index===i?'message--context-active':''}`} style={{touchAction:'manipulation'}} onClick={(e) => { if (e.target.closest('.message__read-more')) return; handleMessageDoubleClick(i); }} onTouchStart={(e)=>handleTouchStart(e,i)} onTouchEnd={handleTouchEnd} onTouchMove={handleTouchMove} onContextMenu={(e)=>e.preventDefault()}>
-                  {msg.replyTo&&(<div className="message__reply-context"><span className="message__reply-label">{msg.senderName==="You"?"You replied":`${msg.senderName} replied`}</span><div className="message__reply-pill">{msg.replyTo.text.slice(0,80)}{msg.replyTo.text.length>80?'...':''}</div></div>)}
-                  <span className="message__sender">{msg.senderName==="You"?'You':msg.senderName} {msg.edited&&<span className="message__edited">(edited)</span>}</span>
-                  <div className={`message__bubble ${msg.senderName==="You"?'message__bubble--sent':'message__bubble--received'} ${msg.text.length > 300 && !expandedMessages[msg.messageId || i] ? 'message__bubble--collapsed' : ''}`}>
-                    {msg.text.length > 300 && !expandedMessages[msg.messageId || i] ? (
-                      <>
-                        <Linkify text={msg.text.slice(0, 300)} />
-                        <button className="message__read-more" onClick={(e) => { e.stopPropagation(); e.preventDefault(); setExpandedMessages(p => ({ ...p, [msg.messageId || i]: true })); }}>... See more</button>
-                      </>
-                    ) : (
-                      <>
-                        <Linkify text={msg.text} />
-                        {msg.text.length > 300 && (
-                          <button className="message__read-more" onClick={(e) => { e.stopPropagation(); e.preventDefault(); setExpandedMessages(p => ({ ...p, [msg.messageId || i]: false })); }}>Show less</button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  {reactions[i]&&<span className="message__reaction"><HeartIcon filled/></span>}
-                  <div className="message__actions">
-                    {msg.senderName==='You'&&(<><button className="message__action-btn" onClick={(e)=>{e.stopPropagation();handleEditMessage(i)}} title="Edit"><EditIcon/></button><button className="message__action-btn" onClick={(e)=>{e.stopPropagation();handleDeleteMessage(i)}} title="Delete"><DeleteIcon/></button></>)}
-                    <button className="message__reply-btn" onClick={(e)=>{e.stopPropagation();handleReply(msg)}}><ReplyIcon/></button><span className="message__tooltip">Reply</span>
-                  </div>
-                  <span className="message__time">{fmt(msg.timestamp)}</span>
-                </div>
-              )}
-            </div>
-          ))}
-          {replyTarget&&(<div className="chat-reply-indicator"><div className="chat-reply-indicator__content"><span className="chat-reply-indicator__label">Replying to {replyTarget.senderName}</span><span className="chat-reply-indicator__text">{replyTarget.text.slice(0,40)}</span></div><button className="chat-reply-indicator__cancel" onClick={cancelReply}><CloseIcon/></button></div>)}
-          {partnerTyping&&partnerOnline&&(<div className="typing-indicator"><div className="typing-indicator__dots"><span/><span/><span/></div>{partner?.name || 'Partner'} typing...</div>)}
-          <div ref={messagesEndRef}/>
+    <>
+      {/* ✅ GLOBAL ANNOUNCEMENT - Outside chat container, fixed at top */}
+      {announcement && (
+        <div className="chat-announcement">
+          <span className="chat-announcement__icon"><AnnounceIcon/></span>
+          <span className="chat-announcement__text">{announcement.text}</span>
+          {announcement.duration > 0 && announcement.expiresAt && (
+            <AnnouncementTimer expiresAt={announcement.expiresAt} />
+          )}
+          {announcement.duration === 0 && (
+            <span className="chat-announcement__badge"><AdminBadgeIcon/> Admin</span>
+          )}
         </div>
-        {isGroupChat&&showMembersPanel&&(<div className="chat-members-panel"><div className="chat-members-panel__header"><h3>Members ({groupMembers.length})</h3><button className="chat-members-panel__close" onClick={()=>setShowMembersPanel(false)}><CloseIcon/></button></div><div className="chat-members-panel__list">{groupMembers.map((m,i)=>(<div key={m.socketId||i} className="chat-members-panel__member" onClick={()=>mentionUser(m.name)}><div className="chat-members-panel__avatar" style={{background:m.socketId===socket.id?'#84cc16':'#ecfccb',color:m.socketId===socket.id?'#09090b':'#65a30d'}}>{(m.name||'?')[0].toUpperCase()}</div><div className="chat-members-panel__info"><span className="chat-members-panel__name">{m.name} {m.socketId===socket.id?'(You)':''}</span><span className="chat-members-panel__location">📍 {m.location||'Unknown'}</span></div><div className="chat-members-panel__dot" style={{background:m.online?'#84cc16':'#d4d4d8'}}/></div>))}</div></div>)}
+      )}
+      
+      <div className="chat-room">
+        <Confetti active={showConfetti} />
+        {toast && (<div className={`toast toast--${toast.type}`}><span>{toast.message}</span><button className="toast__close" onClick={() => setToast(null)}>✕</button></div>)}
+        {confirmModal && (<div className="leave-modal-overlay" onClick={() => setConfirmModal(null)}><div className="leave-modal" onClick={(e) => e.stopPropagation()}><p className="leave-modal__text">{confirmModal.message}</p><div className="leave-modal__actions"><button className="leave-modal__btn leave-modal__btn--stay" onClick={confirmModal.onConfirm}>Yes</button><button className="leave-modal__btn leave-modal__btn--leave" onClick={() => setConfirmModal(null)}>Cancel</button></div></div></div>)}
+        {showLeaveModal && (<div className="leave-modal-overlay"><div className="leave-modal"><p className="leave-modal__text">You're chatting with <strong>{partner?.name}</strong></p><div className="leave-modal__warning"><p>If you leave, {partner?.name} will be notified.</p></div><div className="leave-modal__actions"><button className="leave-modal__btn leave-modal__btn--stay" onClick={()=>{setShowLeaveModal(false);window.history.pushState(null,'',window.location.href)}}>Stay</button><button className="leave-modal__btn leave-modal__btn--leave" onClick={leave}>Leave</button></div></div></div>)}
+        {showSkipModal && (<div className="leave-modal-overlay"><div className="leave-modal"><p className="leave-modal__text">Skip this conversation?</p><div className="leave-modal__warning"><p>You'll be matched with someone new.</p></div><div className="leave-modal__actions"><button className="leave-modal__btn leave-modal__btn--stay" onClick={()=>{setShowSkipModal(false);window.history.pushState(null,'',window.location.href)}}>Stay</button><button className="leave-modal__btn leave-modal__btn--skip" onClick={skip}>Skip & Find New</button></div></div></div>)}
+        <div className="chat-header"><div className="chat-header__partner-info"><div className="chat-header__avatar">{init(partner?.name)}</div><div className="chat-header__details"><p className="chat-header__name"><span className={`chat-header__status chat-header__status--${connectionStatus}`} />{isGroupChat?(groupName||'Group Chat'):partner?.name||'Unknown'}{isGroupChat&&<button className="chat-header__edit-group" onClick={()=>{setGroupName(partner?.name||'Group Chat');setShowGroupNameEdit(true)}}><EditIcon/></button>}</p><p className="chat-header__location">{isGroupChat?`${groupMembers.length} members`:partner?.location||''}</p></div></div><div className="chat-header__actions">{isGroupChat&&<button className="chat-header__members-btn" onClick={()=>setShowMembersPanel(!showMembersPanel)}><MembersIcon/> {groupMembers.length}</button>}<button className="chat-header__spacing-btn" onClick={toggleSpacing}><SpacingIcon compact={spacing==='compact'}/></button>{!partnerLeft&&<><button className="chat-header__skip-btn" onClick={()=>setShowSkipModal(true)}>Skip</button><button className="chat-header__leave-btn" onClick={()=>setShowLeaveModal(true)}>Leave</button></>}</div></div>
+        {showGroupNameEdit&&(<div className="leave-modal-overlay"><div className="leave-modal leave-modal--group-edit"><p className="leave-modal__text">Edit Group Name</p><input className="group-edit-input" value={groupName} onChange={(e)=>setGroupName(e.target.value)} onKeyDown={(e)=>e.key==='Enter'&&handleEditGroupName()} maxLength={30} autoFocus/><div className="leave-modal__actions"><button className="leave-modal__btn leave-modal__btn--stay" onClick={handleEditGroupName}>Save</button><button className="leave-modal__btn leave-modal__btn--leave" onClick={()=>setShowGroupNameEdit(false)}>Cancel</button></div></div></div>)}
+        
+        <div className="chat-main-area">
+          <div className={`chat-messages chat-messages--${spacing}`} ref={messagesContainerRef}>
+            {showScrollBtn&&(<button className="scroll-to-bottom" onClick={()=>scrollToBottom(true)}><ScrollDownIcon/> New messages</button>)}
+            {messages.length===0&&!partnerLeft&&(<div className="chat-messages__empty"><div className="chat-messages__empty-icon"><ChatIcon/></div><p className="chat-messages__empty-text">Start chatting with {isGroupChat?'the group':partner?.name}</p><p className="chat-messages__empty-subtext">Send a message to begin</p></div>)}
+            {messages.map((msg,i)=> (
+              <div key={i} className="message-wrapper">
+                {msg.type==='system'? <div className="system-message"><span className="system-message__text">{msg.text}</span></div>
+                : editingMessage?.index===i? (
+                  <div className="message message--sent">
+                    <textarea
+                      ref={editTextareaRef}
+                      className="message__edit-textarea"
+                      value={editingMessage.text}
+                      onChange={(e)=>setEditingMessage({...editingMessage,text:e.target.value})}
+                      onKeyDown={(e)=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();saveEditedMessage()}if(e.key==='Escape')setEditingMessage(null)}}
+                      onFocus={(e)=>{const val=e.target.value;e.target.setSelectionRange(val.length,val.length);}}
+                      rows={1}
+                      autoFocus
+                    />
+                    <div className="message__edit-actions">
+                      <button className="message__edit-btn message__edit-btn--save" onClick={saveEditedMessage}>Save</button>
+                      <button className="message__edit-btn message__edit-btn--cancel" onClick={()=>setEditingMessage(null)}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={`message ${msg.senderName==="You"?'message--sent':'message--received'} ${msg.isQuoted?'message--quoted':''} ${contextMenu?.index===i?'message--context-active':''}`} style={{touchAction:'manipulation'}} onClick={(e) => { if (e.target.closest('.message__read-more')) return; handleMessageDoubleClick(i); }} onTouchStart={(e)=>handleTouchStart(e,i)} onTouchEnd={handleTouchEnd} onTouchMove={handleTouchMove} onContextMenu={(e)=>e.preventDefault()}>
+                    {msg.replyTo&&(<div className="message__reply-context"><span className="message__reply-label">{msg.senderName==="You"?"You replied":`${msg.senderName} replied`}</span><div className="message__reply-pill">{msg.replyTo.text.slice(0,80)}{msg.replyTo.text.length>80?'...':''}</div></div>)}
+                    <span className="message__sender">{msg.senderName==="You"?'You':msg.senderName} {msg.edited&&<span className="message__edited">(edited)</span>}</span>
+                    <div className={`message__bubble ${msg.senderName==="You"?'message__bubble--sent':'message__bubble--received'} ${msg.text.length > 300 && !expandedMessages[msg.messageId || i] ? 'message__bubble--collapsed' : ''}`}>
+                      {msg.text.length > 300 && !expandedMessages[msg.messageId || i] ? (
+                        <>
+                          <Linkify text={msg.text.slice(0, 300)} />
+                          <button className="message__read-more" onClick={(e) => { e.stopPropagation(); e.preventDefault(); setExpandedMessages(p => ({ ...p, [msg.messageId || i]: true })); }}>... See more</button>
+                        </>
+                      ) : (
+                        <>
+                          <Linkify text={msg.text} />
+                          {msg.text.length > 300 && (
+                            <button className="message__read-more" onClick={(e) => { e.stopPropagation(); e.preventDefault(); setExpandedMessages(p => ({ ...p, [msg.messageId || i]: false })); }}>Show less</button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    {reactions[i]&&<span className="message__reaction"><HeartIcon filled/></span>}
+                    <div className="message__actions">
+                      {msg.senderName==='You'&&(<><button className="message__action-btn" onClick={(e)=>{e.stopPropagation();handleEditMessage(i)}} title="Edit"><EditIcon/></button><button className="message__action-btn" onClick={(e)=>{e.stopPropagation();handleDeleteMessage(i)}} title="Delete"><DeleteIcon/></button></>)}
+                      <button className="message__reply-btn" onClick={(e)=>{e.stopPropagation();handleReply(msg)}}><ReplyIcon/></button><span className="message__tooltip">Reply</span>
+                    </div>
+                    <span className="message__time">{fmt(msg.timestamp)}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+            {replyTarget&&(<div className="chat-reply-indicator"><div className="chat-reply-indicator__content"><span className="chat-reply-indicator__label">Replying to {replyTarget.senderName}</span><span className="chat-reply-indicator__text">{replyTarget.text.slice(0,40)}</span></div><button className="chat-reply-indicator__cancel" onClick={cancelReply}><CloseIcon/></button></div>)}
+            {partnerTyping&&partnerOnline&&(<div className="typing-indicator"><div className="typing-indicator__dots"><span/><span/><span/></div>{partner?.name || 'Partner'} typing...</div>)}
+            <div ref={messagesEndRef}/>
+          </div>
+          {isGroupChat&&showMembersPanel&&(<div className="chat-members-panel"><div className="chat-members-panel__header"><h3>Members ({groupMembers.length})</h3><button className="chat-members-panel__close" onClick={()=>setShowMembersPanel(false)}><CloseIcon/></button></div><div className="chat-members-panel__list">{groupMembers.map((m,i)=>(<div key={m.socketId||i} className="chat-members-panel__member" onClick={()=>mentionUser(m.name)}><div className="chat-members-panel__avatar" style={{background:m.socketId===socket.id?'#84cc16':'#ecfccb',color:m.socketId===socket.id?'#09090b':'#65a30d'}}>{(m.name||'?')[0].toUpperCase()}</div><div className="chat-members-panel__info"><span className="chat-members-panel__name">{m.name} {m.socketId===socket.id?'(You)':''}</span><span className="chat-members-panel__location">📍 {m.location||'Unknown'}</span></div><div className="chat-members-panel__dot" style={{background:m.online?'#84cc16':'#d4d4d8'}}/></div>))}</div></div>)}
+        </div>
+        {!partnerLeft&&(<div className="chat-bottom-bar"><button className="chat-bottom-bar__btn chat-bottom-bar__btn--skip" onClick={()=>setShowSkipModal(true)}>Skip</button><button className="chat-bottom-bar__btn chat-bottom-bar__btn--leave" onClick={()=>setShowLeaveModal(true)}>Leave</button></div>)}
+        {!partnerLeft? (
+          <div className={`chat-input ${isInputFocused?'chat-input--focused':''}`}><div className="chat-input__wrapper"><textarea ref={textareaRef} className="chat-input__field" value={message} onChange={handleInputChange} onFocus={()=>setIsInputFocused(true)} onBlur={()=>setIsInputFocused(false)} onKeyDown={(e)=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}}} placeholder={!partnerOnline?`${partner?.name} disconnected...`:"Type a message..."} disabled={!partnerOnline} rows={1}/><button className={`chat-input__send-btn ${message.trim()?'chat-input__send-btn--active':''}`} onClick={sendMessage} disabled={!partnerOnline||!message.trim()}><SendIcon/></button></div></div>
+        ) : (<div className="partner-left-banner"><div className="partner-left-banner__icon"><WaveIcon/></div><p className="partner-left-banner__title">{partner?.name} has left</p><p className="partner-left-banner__text">You can still read the conversation.</p><div className="chat-summary"><div className="chat-summary__item"><span className="chat-summary__value">{summary.duration}</span><span className="chat-summary__label">Duration</span></div><div className="chat-summary__item"><span className="chat-summary__value">{summary.total}</span><span className="chat-summary__label">Messages</span></div><div className="chat-summary__item"><span className="chat-summary__value">{summary.myMsgs}</span><span className="chat-summary__label">You</span></div><div className="chat-summary__item"><span className="chat-summary__value">{summary.partnerMsgs}</span><span className="chat-summary__label">{partner?.name}</span></div></div><div className="partner-left-banner__actions"><button className="partner-left-banner__btn partner-left-banner__btn--skip" onClick={skip}>Find New Partner</button><button className="partner-left-banner__btn partner-left-banner__btn--leave" onClick={leave}>Back to Profile</button></div></div>)}
+        {contextMenu && (<div className="context-menu" style={{ left: `${Math.min(contextMenu.x, window.innerWidth - 180)}px`, top: `${contextMenu.y - 140}px` }} ref={contextMenuRef}><button className="context-menu__item" onClick={handleContextReply}><ReplyIcon /> Reply</button><button className="context-menu__item" onClick={handleContextReact}><HeartIcon filled /> React</button>{contextMenu.isOwn && (<><button className="context-menu__item" onClick={handleContextEdit}><EditIcon /> Edit</button><button className="context-menu__item context-menu__item--danger" onClick={handleContextDelete}><DeleteIcon /> Delete</button></>)}</div>)}
       </div>
-      {!partnerLeft&&(<div className="chat-bottom-bar"><button className="chat-bottom-bar__btn chat-bottom-bar__btn--skip" onClick={()=>setShowSkipModal(true)}>Skip</button><button className="chat-bottom-bar__btn chat-bottom-bar__btn--leave" onClick={()=>setShowLeaveModal(true)}>Leave</button></div>)}
-      {!partnerLeft? (
-        <div className={`chat-input ${isInputFocused?'chat-input--focused':''}`}><div className="chat-input__wrapper"><textarea ref={textareaRef} className="chat-input__field" value={message} onChange={handleInputChange} onFocus={()=>setIsInputFocused(true)} onBlur={()=>setIsInputFocused(false)} onKeyDown={(e)=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}}} placeholder={!partnerOnline?`${partner?.name} disconnected...`:"Type a message..."} disabled={!partnerOnline} rows={1}/><button className={`chat-input__send-btn ${message.trim()?'chat-input__send-btn--active':''}`} onClick={sendMessage} disabled={!partnerOnline||!message.trim()}><SendIcon/></button></div></div>
-      ) : (<div className="partner-left-banner"><div className="partner-left-banner__icon"><WaveIcon/></div><p className="partner-left-banner__title">{partner?.name} has left</p><p className="partner-left-banner__text">You can still read the conversation.</p><div className="chat-summary"><div className="chat-summary__item"><span className="chat-summary__value">{summary.duration}</span><span className="chat-summary__label">Duration</span></div><div className="chat-summary__item"><span className="chat-summary__value">{summary.total}</span><span className="chat-summary__label">Messages</span></div><div className="chat-summary__item"><span className="chat-summary__value">{summary.myMsgs}</span><span className="chat-summary__label">You</span></div><div className="chat-summary__item"><span className="chat-summary__value">{summary.partnerMsgs}</span><span className="chat-summary__label">{partner?.name}</span></div></div><div className="partner-left-banner__actions"><button className="partner-left-banner__btn partner-left-banner__btn--skip" onClick={skip}>Find New Partner</button><button className="partner-left-banner__btn partner-left-banner__btn--leave" onClick={leave}>Back to Profile</button></div></div>)}
-      {contextMenu && (<div className="context-menu" style={{ left: `${Math.min(contextMenu.x, window.innerWidth - 180)}px`, top: `${contextMenu.y - 140}px` }} ref={contextMenuRef}><button className="context-menu__item" onClick={handleContextReply}><ReplyIcon /> Reply</button><button className="context-menu__item" onClick={handleContextReact}><HeartIcon filled /> React</button>{contextMenu.isOwn && (<><button className="context-menu__item" onClick={handleContextEdit}><EditIcon /> Edit</button><button className="context-menu__item context-menu__item--danger" onClick={handleContextDelete}><DeleteIcon /> Delete</button></>)}</div>)}
-    </div>
+    </>
   );
 }

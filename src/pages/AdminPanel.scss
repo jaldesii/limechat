@@ -11,6 +11,7 @@ $gray-100: #f4f4f5;
 $gray-200: #e4e4e7;
 $gray-300: #d4d4d8;
 $gray-400: #a1a1aa;
+$gray-700: #3f3f46; 
 $gray-500: #71717a;
 $gray-600: #52525b;
 $gray-900: #18181b;
@@ -68,6 +69,126 @@ $font: 'Poppins', sans-serif;
   }
 
   // ============================================
+  // Quick Stats Row
+  // ============================================
+  &__quick-stats {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  &__quick-stat {
+    flex: 1;
+    min-width: 150px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: $gray-50;
+    border: 1px solid $gray-200;
+    border-radius: 8px;
+    padding: 12px 16px;
+  }
+
+  &__quick-stat-icon {
+    font-size: 20px;
+  }
+
+  &__quick-stat-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  &__quick-stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: $gray-900;
+    line-height: 1;
+  }
+
+  &__quick-stat-label {
+    font-size: 10px;
+    color: $gray-500;
+    text-transform: uppercase;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+  }
+
+  // ============================================
+  // Activity Log
+  // ============================================
+  &__activity-section {
+    margin-bottom: 20px;
+  }
+
+  &__activity-log {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid $gray-200;
+    border-radius: 8px;
+    background: $white;
+  }
+
+  &__activity-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    border-bottom: 1px solid $gray-100;
+    font-size: 12px;
+    
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &--user {
+      background: #f0f9ff;
+      .admin__activity-msg { color: #0369a1; }
+    }
+
+    &--match {
+      background: #f0fdf4;
+      .admin__activity-msg { color: #166534; }
+    }
+
+    &--end {
+      background: #fef2f2;
+      .admin__activity-msg { color: #991b1b; }
+    }
+
+    &--announcement {
+      background: #fefce8;
+      .admin__activity-msg { color: #854d0e; }
+    }
+
+    &--ban {
+      background: #fff1f2;
+      .admin__activity-msg { color: #be123c; }
+    }
+
+    &--unban {
+      background: #ecfdf5;
+      .admin__activity-msg { color: #047857; }
+    }
+  }
+
+  &__activity-time {
+    font-family: 'SF Mono', monospace;
+    font-size: 10px;
+    color: $gray-400;
+    white-space: nowrap;
+    min-width: 70px;
+    flex-shrink: 0;
+  }
+
+  &__activity-msg {
+    color: $gray-700;
+    flex: 1;
+    word-break: break-word;
+  }
+
+  // ============================================
   // Announcement Section
   // ============================================
   &__announce {
@@ -122,10 +243,21 @@ $font: 'Poppins', sans-serif;
     text-overflow: ellipsis;
   }
 
-  &__announce-time {
-    font-size: 10px;
-    color: #a16207;
+  &__announce-timer {
+    font-size: 11px;
+    color: #059669;
+    font-weight: 600;
+    font-family: 'SF Mono', monospace;
     white-space: nowrap;
+  }
+
+  &__announce-badge {
+    font-size: 10px;
+    background: #d1fae5;
+    color: #059669;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
   }
 
   &__announce-clear {
@@ -156,6 +288,19 @@ $font: 'Poppins', sans-serif;
     &:focus { border-color: $lime; }
   }
 
+  &__announce-select {
+    padding: 8px 12px;
+    border: 1px solid $gray-200;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: $font;
+    background: $white;
+    color: $gray-900;
+    cursor: pointer;
+    outline: none;
+    &:focus { border-color: $lime; }
+  }
+
   &__announce-send {
     padding: 8px 16px;
     background: $lime;
@@ -181,7 +326,48 @@ $font: 'Poppins', sans-serif;
     &:hover { background: $gray-100; }
   }
 
-  // Bar
+  // ============================================
+  // Ban/Unban Buttons
+  // ============================================
+  &__ban-btn {
+    background: none;
+    border: 1px solid #ef4444;
+    color: #ef4444;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: $font;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    
+    &:hover {
+      background: #ef4444;
+      color: white;
+    }
+  }
+
+  &__unban-btn {
+    background: none;
+    border: 1px solid #10b981;
+    color: #10b981;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: $font;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    
+    &:hover {
+      background: #10b981;
+      color: white;
+    }
+  }
+
+  // ============================================
+  // Search & Tabs
+  // ============================================
   &__bar {
     display: flex;
     justify-content: space-between;
@@ -220,7 +406,9 @@ $font: 'Poppins', sans-serif;
   }
   &__tab-count { opacity: 0.6; font-weight: 400; margin-left: 3px; }
 
+  // ============================================
   // Table
+  // ============================================
   &__table {
     width: 100%;
     border-collapse: collapse;
@@ -251,13 +439,16 @@ $font: 'Poppins', sans-serif;
       height: 7px;
       border-radius: 50%;
       flex-shrink: 0;
+      &--group { background: #a855f7; }
     }
   }
   &__muted { color: $gray-400; }
   &__mono { font-family: 'SF Mono', 'Cascadia Code', monospace; font-size: 12px; color: $gray-600; }
   &__empty { text-align: center; padding: 40px; color: $gray-400; font-size: 13px; }
 
-  // Section
+  // ============================================
+  // Section Title
+  // ============================================
   &__section-title {
     margin-top: 32px;
     margin-bottom: 12px;
@@ -267,144 +458,79 @@ $font: 'Poppins', sans-serif;
     letter-spacing: 0.8px;
     color: $gray-400;
   }
-  // Add these inside .admin block
 
-&__announce-select {
-  padding: 8px 12px;
-  border: 1px solid $gray-200;
-  border-radius: 6px;
-  font-size: 12px;
-  font-family: $font;
-  background: $white;
-  color: $gray-900;
-  cursor: pointer;
-  outline: none;
-  
-  &:focus { border-color: $lime; }
-  // Ban button
-&__ban-btn {
-  background: none;
-  border: 1px solid #ef4444;
-  color: #ef4444;
-  padding: 3px 10px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-family: $font;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s ease;
-  
-  &:hover {
-    background: #ef4444;
-    color: white;
+  // ============================================
+  // Stats Dashboard
+  // ============================================
+  &__dashboard {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  &__card {
+    background: $white;
+    border: 1px solid $gray-200;
+    border-radius: 10px;
+    padding: 16px;
+    &--full { grid-column: 1 / -1; }
+  }
+
+  &__card-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: $gray-900;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  // Device Stats
+  &__device-bars { display: flex; flex-direction: column; gap: 10px; }
+  &__device-bar { display: flex; align-items: center; gap: 10px; }
+  &__device-label { font-size: 11px; color: $gray-600; width: 80px; flex-shrink: 0; }
+  &__device-track { flex: 1; height: 8px; background: $gray-100; border-radius: 4px; overflow: hidden; }
+  &__device-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+  &__device-count { font-size: 12px; font-weight: 600; color: $gray-900; width: 30px; text-align: right; }
+
+  // Location Heatmap
+  &__location-list { display: flex; flex-direction: column; gap: 8px; }
+  &__location-item { display: flex; align-items: center; gap: 8px; }
+  &__location-name { font-size: 11px; color: $gray-600; width: 80px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  &__location-bar { flex: 1; height: 6px; background: $gray-100; border-radius: 3px; overflow: hidden; }
+  &__location-fill { height: 100%; background: $lime; border-radius: 3px; transition: width 0.5s ease; }
+  &__location-count { font-size: 11px; font-weight: 600; color: $gray-900; width: 25px; text-align: right; }
+
+  // Peak Hours
+  &__peak-chart {
+    display: flex; align-items: flex-end; gap: 3px;
+    height: 120px; padding-top: 8px;
+  }
+  &__peak-bar {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    height: 100%; justify-content: flex-end;
+  }
+  &__peak-fill {
+    width: 100%; max-width: 30px; background: $lime;
+    border-radius: 3px 3px 0 0; min-height: 2px;
+    transition: height 0.3s ease;
+  }
+  &__peak-label {
+    font-size: 9px; color: $gray-400; margin-top: 4px;
   }
 }
 
-// Unban button
-&__unban-btn {
-  background: none;
-  border: 1px solid #10b981;
-  color: #10b981;
-  padding: 3px 10px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-family: $font;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s ease;
-  
-  &:hover {
-    background: #10b981;
-    color: white;
-  }
-}
-}
-
-&__announce-timer {
-  font-size: 11px;
-  color: #059669;
-  font-weight: 600;
-  font-family: 'SF Mono', monospace;
-  white-space: nowrap;
-}
-
-&__announce-badge {
-  font-size: 10px;
-  background: #d1fae5;
-  color: #059669;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-weight: 600;
-}
-
-// Add this inside .admin block
-.admin__user-dot--group {
-  background: #a855f7;
-}
-
 // ============================================
-// Stats Dashboard
+// Responsive
 // ============================================
-.admin__dashboard {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.admin__card {
-  background: $white;
-  border: 1px solid $gray-200;
-  border-radius: 10px;
-  padding: 16px;
-  &--full { grid-column: 1 / -1; }
-}
-
-.admin__card-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: $gray-900;
-  margin-bottom: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-// Device Stats
-.admin__device-bars { display: flex; flex-direction: column; gap: 10px; }
-.admin__device-bar { display: flex; align-items: center; gap: 10px; }
-.admin__device-label { font-size: 11px; color: $gray-600; width: 80px; flex-shrink: 0; }
-.admin__device-track { flex: 1; height: 8px; background: $gray-100; border-radius: 4px; overflow: hidden; }
-.admin__device-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
-.admin__device-count { font-size: 12px; font-weight: 600; color: $gray-900; width: 30px; text-align: right; }
-
-// Location Heatmap
-.admin__location-list { display: flex; flex-direction: column; gap: 8px; }
-.admin__location-item { display: flex; align-items: center; gap: 8px; }
-.admin__location-name { font-size: 11px; color: $gray-600; width: 80px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.admin__location-bar { flex: 1; height: 6px; background: $gray-100; border-radius: 3px; overflow: hidden; }
-.admin__location-fill { height: 100%; background: $lime; border-radius: 3px; transition: width 0.5s ease; }
-.admin__location-count { font-size: 11px; font-weight: 600; color: $gray-900; width: 25px; text-align: right; }
-
-// Peak Hours
-.admin__peak-chart {
-  display: flex; align-items: flex-end; gap: 3px;
-  height: 120px; padding-top: 8px;
-}
-.admin__peak-bar {
-  flex: 1; display: flex; flex-direction: column; align-items: center;
-  height: 100%; justify-content: flex-end;
-}
-.admin__peak-fill {
-  width: 100%; max-width: 30px; background: $lime;
-  border-radius: 3px 3px 0 0; min-height: 2px;
-  transition: height 0.3s ease;
-}
-.admin__peak-label {
-  font-size: 9px; color: $gray-400; margin-top: 4px;
-}
-
 @media (max-width: 600px) {
-  .admin__dashboard { grid-template-columns: 1fr; }
-  .admin__peak-chart { height: 80px; }
-}
+  .admin {
+    padding: 16px;
+    
+    &__dashboard { grid-template-columns: 1fr; }
+    &__peak-chart { height: 80px; }
+    &__quick-stats { flex-direction: column; }
+    &__announce-form { flex-wrap: wrap; }
+  }
 }

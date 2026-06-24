@@ -326,30 +326,45 @@ io.on("connection", (socket) => {
             if (expireTimeout) clearTimeout(expireTimeout); expireTimeout = null;
             broadcastAdminUpdate();
         });
-       socket.on('adminAnnouncement', (data) => {
-    if (expireTimeout) { clearTimeout(expireTimeout); expireTimeout = null; }
-    const duration = data.duration || 5;
-    const expiresAt = duration > 0 ? new Date(Date.now() + duration * 60 * 1000).toISOString() : null;
-    currentAnnouncement = { text: data.text, time: new Date().toISOString(), duration, expiresAt };
-    
-    // ❌ OLD: socket.broadcast.emit('announcement', currentAnnouncement);
-    // ✅ NEW: Send to ALL connected clients (including those in chat rooms)
-    io.emit('announcement', currentAnnouncement);
-    
-    if (duration > 0) {
-        expireTimeout = setTimeout(() => {
-            currentAnnouncement = null; 
-            expireTimeout = null;
-            io.emit('clearAnnouncement'); 
+        
+        // ✅ FIXED: Admin Announcement Handler
+        socket.on('adminAnnouncement', (data) => {
+            console.log('📢 Admin announcement received:', data);
+            console.log('📢 Connected clients:', io.engine.clientsCount);
+            
+            if (expireTimeout) { clearTimeout(expireTimeout); expireTimeout = null; }
+            
+            const duration = data.duration || 5;
+            const expiresAt = duration > 0 ? new Date(Date.now() + duration * 60 * 1000).toISOString() : null;
+            currentAnnouncement = { 
+                text: data.text, 
+                time: new Date().toISOString(), 
+                duration, 
+                expiresAt 
+            };
+            
+            // ✅ Broadcast to ALL connected clients
+            io.emit('announcement', currentAnnouncement);
+            console.log('✅ Announcement broadcast complete');
+            
+            if (duration > 0) {
+                expireTimeout = setTimeout(() => {
+                    currentAnnouncement = null; 
+                    expireTimeout = null;
+                    io.emit('clearAnnouncement');
+                    console.log('🕐 Announcement auto-cleared');
+                    broadcastAdminUpdate();
+                }, duration * 60 * 1000);
+            }
+            
             broadcastAdminUpdate();
-        }, duration * 60 * 1000);
-    }
-    broadcastAdminUpdate();
-});
+        });
+        
         socket.on('adminClearAnnouncement', () => {
+            console.log('🗑️ Admin clearing announcement');
             if (expireTimeout) { clearTimeout(expireTimeout); expireTimeout = null; }
             currentAnnouncement = null;
-            socket.broadcast.emit('clearAnnouncement');
+            io.emit('clearAnnouncement');
             broadcastAdminUpdate();
         });
         
@@ -467,7 +482,14 @@ io.on("connection", (socket) => {
                 s1.join(roomId); s2.join(roomId); totalMatches++;
                 io.to(u1.socketId).emit("matched", { roomId, partner: { name: u2.name, location: u2.location } });
                 io.to(u2.socketId).emit("matched", { roomId, partner: { name: u1.name, location: u1.location } });
-                if (currentAnnouncement) { io.to(u1.socketId).emit('announcement', currentAnnouncement); io.to(u2.socketId).emit('announcement', currentAnnouncement); }
+                
+                // ✅ Send current announcement to newly matched users
+                if (currentAnnouncement) { 
+                    console.log('📢 Sending current announcement to new match');
+                    io.to(u1.socketId).emit('announcement', currentAnnouncement); 
+                    io.to(u2.socketId).emit('announcement', currentAnnouncement); 
+                }
+                
                 broadcastToAdmins('adminMatch', { roomId, user1: u1.name, user2: u2.name, startedAt: new Date().toISOString() });
                 broadcastAdminUpdate();
             }
@@ -533,7 +555,12 @@ io.on("connection", (socket) => {
         socket.join(roomId); 
         updateUser(socket.id, { roomId, lastActive: new Date().toISOString() }); 
         socket.to(roomId).emit("partnerJoined"); 
-        if (currentAnnouncement) socket.emit('announcement', currentAnnouncement); 
+        
+        // ✅ Send current announcement when user joins a room
+        if (currentAnnouncement) {
+            console.log('📢 Sending current announcement to user joining room');
+            socket.emit('announcement', currentAnnouncement);
+        }
     });
     
     socket.on("sendMessage", (data) => {
@@ -655,5 +682,6 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`📝 Group name edit enabled`);
     console.log(`🛡️ Anti-spam protection enabled`);
     console.log(`🚫 Hard ban system enabled`);
+    console.log(`📢 Announcement system: io.emit() for all clients`);
     console.log(`🏥 Health check: http://0.0.0.0:${PORT}/health`);
 });

@@ -25,11 +25,24 @@ export default function AdminPanel() {
   const [deviceStats, setDeviceStats] = useState({ mobile: 0, desktop: 0, tablet: 0 });
   const [locationStats, setLocationStats] = useState([]);
   const [peakHours, setPeakHours] = useState([]);
+  const [activityLog, setActivityLog] = useState([]);
+  const [callRooms, setCallRooms] = useState([]);
+  const [callQueue, setCallQueue] = useState([]);
+  const [suspiciousUsers, setSuspiciousUsers] = useState(0);
 
   const durationOptions = [
     { value: 1, label: '1 min' }, { value: 5, label: '5 min' }, { value: 10, label: '10 min' },
     { value: 15, label: '15 min' }, { value: 30, label: '30 min' }, { value: 60, label: '1 hour' }, { value: 0, label: 'Manual' },
   ];
+
+  const addActivity = (type, message) => {
+    setActivityLog(prev => [{
+      id: Date.now() + Math.random(),
+      type,
+      message,
+      time: new Date().toLocaleTimeString()
+    }, ...prev].slice(0, 50)); // Keep last 50 events
+  };
 
   useEffect(() => {
     adminSocket.emit('adminGetData');
@@ -51,6 +64,9 @@ export default function AdminPanel() {
         bannedCount: data.bannedCount || 0
       });
       setCurrentAnnouncement(data.announcement || null);
+      setCallRooms(data.callRooms || 0);
+      setCallQueue(data.callQueue || 0);
+      setSuspiciousUsers(data.suspiciousUsers || 0);
       
       const devices = { mobile: 0, desktop: 0, tablet: 0 };
       (data.users || []).forEach(u => {
@@ -87,9 +103,21 @@ export default function AdminPanel() {
       setBannedList(data.banned || []);
     });
 
-    adminSocket.on('adminNewUser', () => adminSocket.emit('adminGetData'));
-    adminSocket.on('adminMatch', () => adminSocket.emit('adminGetData'));
-    adminSocket.on('adminChatEnded', (d) => setActiveChats(prev => prev.filter(c => c.roomId !== d.roomId)));
+    // ✅ Activity tracking
+    adminSocket.on('adminNewUser', () => {
+      addActivity('user', '👋 New user connected');
+      adminSocket.emit('adminGetData');
+    });
+    
+    adminSocket.on('adminMatch', (data) => {
+      addActivity('match', `💬 New match: ${data.user1 || '?'} ↔ ${data.user2 || '?'}`);
+      adminSocket.emit('adminGetData');
+    });
+    
+    adminSocket.on('adminChatEnded', (d) => {
+      addActivity('end', `👋 Chat ended: #${d.roomId?.slice(-6)}`);
+      setActiveChats(prev => prev.filter(c => c.roomId !== d.roomId));
+    });
 
     const interval = setInterval(() => adminSocket.emit('adminGetData'), 8000);
     return () => {
@@ -102,10 +130,18 @@ export default function AdminPanel() {
 
   const handleSendAnnouncement = () => {
     if (!announcement.trim()) return;
+    console.log('📤 Admin sending announcement:', { text: announcement, duration: announceDuration });
     adminSocket.emit('adminAnnouncement', { text: announcement, duration: announceDuration });
-    setAnnouncement(""); setShowAnnounceForm(false);
+    addActivity('announcement', `📢 Announcement sent: "${announcement}" (${announceDuration === 0 ? 'Manual' : announceDuration + 'min'})`);
+    setAnnouncement(""); 
+    setShowAnnounceForm(false);
   };
-  const handleClearAnnouncement = () => adminSocket.emit('adminClearAnnouncement');
+  
+  const handleClearAnnouncement = () => {
+    console.log('🗑️ Admin clearing announcement');
+    adminSocket.emit('adminClearAnnouncement');
+    addActivity('announcement', '🗑️ Announcement cleared');
+  };
 
   const timeAgo = (ts) => {
     if (!ts) return '—';
@@ -156,6 +192,31 @@ export default function AdminPanel() {
         </div>
       </div>
 
+      {/* Quick Stats Row */}
+      <div className="admin__quick-stats">
+        <div className="admin__quick-stat">
+          <span className="admin__quick-stat-icon">📞</span>
+          <div className="admin__quick-stat-info">
+            <span className="admin__quick-stat-value">{callRooms}</span>
+            <span className="admin__quick-stat-label">Call Rooms</span>
+          </div>
+        </div>
+        <div className="admin__quick-stat">
+          <span className="admin__quick-stat-icon">⏳</span>
+          <div className="admin__quick-stat-info">
+            <span className="admin__quick-stat-value">{callQueue}</span>
+            <span className="admin__quick-stat-label">Call Queue</span>
+          </div>
+        </div>
+        <div className="admin__quick-stat">
+          <span className="admin__quick-stat-icon">⚠️</span>
+          <div className="admin__quick-stat-info">
+            <span className="admin__quick-stat-value">{suspiciousUsers}</span>
+            <span className="admin__quick-stat-label">Suspicious</span>
+          </div>
+        </div>
+      </div>
+
       {/* Announcement */}
       <div className="admin__announce">
         {currentAnnouncement ? (
@@ -176,6 +237,23 @@ export default function AdminPanel() {
             <button className="admin__announce-cancel" onClick={() => setShowAnnounceForm(false)}>Cancel</button>
           </div>
         ) : (<button className="admin__announce-btn" onClick={() => setShowAnnounceForm(true)}>📢 New Announcement</button>)}
+      </div>
+
+      {/* Activity Log */}
+      <div className="admin__activity-section">
+        <h4 className="admin__section-title">📋 Activity Log</h4>
+        <div className="admin__activity-log">
+          {activityLog.length === 0 ? (
+            <p className="admin__muted" style={{ padding: '12px', textAlign: 'center' }}>No activity yet...</p>
+          ) : (
+            activityLog.map(log => (
+              <div key={log.id} className={`admin__activity-item admin__activity-item--${log.type}`}>
+                <span className="admin__activity-time">{log.time}</span>
+                <span className="admin__activity-msg">{log.message}</span>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {/* Stats Dashboard */}
@@ -238,7 +316,7 @@ export default function AdminPanel() {
       {/* Users Table */}
       <table className="admin__table">
         <thead><tr><th>user</th><th>location</th><th>status</th><th>room</th><th>active</th><th>action</th></tr></thead>
-        <tbody>{filtered.length === 0 ? (<tr><td colSpan={6} className="admin__empty">— no users —</td></tr>) : filtered.map((u, i) => (<tr key={u.socketId + i}><td><span className="admin__user"><span className="admin__user-dot" style={{ background: u.status === 'connected' ? '#84cc16' : u.status === 'waiting' ? '#fbbf24' : '#d4d4d8' }} />{u.name || 'Anonymous'}</span></td><td className="admin__muted">{u.location || '—'}</td><td>{u.status === 'connected' ? 'active' : u.status === 'waiting' ? 'waiting' : 'offline'}</td><td className="admin__mono">{u.roomId ? `#${u.roomId.slice(-6)}` : '—'}</td><td className="admin__muted">{timeAgo(u.lastActive)}</td><td><button className="admin__ban-btn" onClick={() => { if (window.confirm(`Ban ${u.name || 'Anonymous'}?`)) { adminSocket.emit('adminBanUser', { clientId: u.clientId, socketId: u.socketId }); } }} title="Ban user">🚫 Ban</button></td></tr>))}</tbody>
+        <tbody>{filtered.length === 0 ? (<tr><td colSpan={6} className="admin__empty">— no users —</td></tr>) : filtered.map((u, i) => (<tr key={u.socketId + i}><td><span className="admin__user"><span className="admin__user-dot" style={{ background: u.status === 'connected' ? '#84cc16' : u.status === 'waiting' ? '#fbbf24' : '#d4d4d8' }} />{u.name || 'Anonymous'}</span></td><td className="admin__muted">{u.location || '—'}</td><td>{u.status === 'connected' ? 'active' : u.status === 'waiting' ? 'waiting' : 'offline'}</td><td className="admin__mono">{u.roomId ? `#${u.roomId.slice(-6)}` : '—'}</td><td className="admin__muted">{timeAgo(u.lastActive)}</td><td><button className="admin__ban-btn" onClick={() => { if (window.confirm(`Ban ${u.name || 'Anonymous'}?`)) { adminSocket.emit('adminBanUser', { clientId: u.clientId, socketId: u.socketId }); addActivity('ban', `🚫 Banned: ${u.name || 'Anonymous'}`); } }} title="Ban user">🚫 Ban</button></td></tr>))}</tbody>
       </table>
 
       {/* Banned Users */}
@@ -247,7 +325,7 @@ export default function AdminPanel() {
       {bannedList.length > 0 && (
         <table className="admin__table">
           <thead><tr><th>clientId</th><th>action</th></tr></thead>
-          <tbody>{bannedList.map((id, i) => (<tr key={i}><td className="admin__mono">{id}</td><td><button className="admin__unban-btn" onClick={() => { if (window.confirm(`Unban ${id}?`)) { adminSocket.emit('adminUnbanUser', { clientId: id }); } }}>✅ Unban</button></td></tr>))}</tbody>
+          <tbody>{bannedList.map((id, i) => (<tr key={i}><td className="admin__mono">{id}</td><td><button className="admin__unban-btn" onClick={() => { if (window.confirm(`Unban ${id}?`)) { adminSocket.emit('adminUnbanUser', { clientId: id }); addActivity('unban', `✅ Unbanned: ${id}`); } }}>✅ Unban</button></td></tr>))}</tbody>
         </table>
       )}
 
