@@ -49,7 +49,31 @@ $lime: #84cc16;
     font-size: 16px;
     color: $lime;
     font-weight: 500;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
+  }
+
+  // ✅ Audio Quality Badge
+  &__quality {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: $lime;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 20px;
+    background: rgba($lime, 0.1);
+    padding: 6px 12px;
+    border-radius: 20px;
+
+    &-dot {
+      width: 6px;
+      height: 6px;
+      background: $lime;
+      border-radius: 50%;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
   }
 
   &__code {
@@ -61,16 +85,13 @@ $lime: #84cc16;
     margin-bottom: 24px;
     transition: all 0.3s;
 
-    &:hover {
-      background: rgba(255,255,255,0.15);
-    }
+    &:hover { background: rgba(255,255,255,0.15); }
 
     span { font-size: 12px; color: rgba(255,255,255,0.6); display: block; }
     strong { font-size: 28px; color: #fff; letter-spacing: 4px; display: block; margin: 4px 0; }
     small { font-size: 11px; color: rgba(255,255,255,0.4); }
   }
 
-  // ✅ Start Call Button
   &__start-btn {
     padding: 16px 32px;
     background: #3b82f6;
@@ -84,22 +105,19 @@ $lime: #84cc16;
     margin-top: 8px;
     transition: all 0.3s;
     width: 100%;
-    
+
     &:hover {
       background: #2563eb;
       transform: translateY(-2px);
       box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
     }
-    
-    &:active {
-      transform: translateY(0);
-    }
+
+    &:active { transform: translateY(0); }
   }
 
-  // ✅ Waiting Spinner
   &__waiting {
     margin-top: 8px;
-    
+
     p { color: rgba(255,255,255,0.8); margin-bottom: 8px; }
     small { color: rgba(255,255,255,0.5); font-size: 13px; }
     strong { color: #fff; letter-spacing: 2px; }
@@ -115,14 +133,13 @@ $lime: #84cc16;
     animation: spin 0.8s linear infinite;
   }
 
-  // ✅ Error Message
   &__error-msg {
     background: rgba(239, 68, 68, 0.15);
     border: 1px solid rgba(239, 68, 68, 0.3);
     border-radius: 12px;
     padding: 16px;
     margin-bottom: 16px;
-    
+
     p { color: #fca5a5; font-size: 14px; margin-bottom: 12px; line-height: 1.5; }
   }
 
@@ -206,7 +223,7 @@ $lime: #84cc16;
     font-weight: 500;
     cursor: pointer;
     font-family: $font;
-    
+
     &:hover { background: rgba(255,255,255,0.25); }
   }
 }
@@ -222,3 +239,8 @@ $lime: #84cc16;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
