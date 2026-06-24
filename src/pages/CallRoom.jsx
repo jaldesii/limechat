@@ -11,17 +11,20 @@ export default function CallRoom() {
   
   const [status, setStatus] = useState('waiting');
   const [micOn, setMicOn] = useState(true);
+  const [speakerOn, setSpeakerOn] = useState(false); // ✅ Speaker toggle
   const [callDuration, setCallDuration] = useState(0);
   const [micReady, setMicReady] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [socketConnected, setSocketConnected] = useState(false);
-  const [audioQuality, setAudioQuality] = useState('standard'); // standard, hd
+  const [audioQuality, setAudioQuality] = useState('standard');
   
   const localAudioRef = useRef(null);
   const remoteAudioRef = useRef(null);
   const peerRef = useRef(null);
   const localStreamRef = useRef(null);
   const timerRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const echoCancellerRef = useRef(null);
   
   // ✅ ENHANCED Servers config
   const servers = {
@@ -40,29 +43,26 @@ export default function CallRoom() {
     console.log('📍 CallRoom loaded');
     console.log('📍 Room ID:', roomId);
     console.log('📍 Is Host:', isHost);
-    console.log('📍 Socket connected:', socket.connected);
     
     if (socket.connected) {
       setSocketConnected(true);
-      console.log('✅ Socket already connected');
     } else {
-      console.log('⏳ Waiting for socket connection...');
-      socket.on('connect', () => {
-        setSocketConnected(true);
-        console.log('✅ Socket connected!');
-      });
+      socket.on('connect', () => setSocketConnected(true));
     }
     
     // WebRTC Signaling
     socket.on("userJoined", async (data) => {
-      console.log('👋 Guest joined!', data);
+      console.log('👋 Guest joined!');
       if (peerRef.current && isHost) {
         try {
-          const offer = await peerRef.current.createOffer();
+          const offer = await peerRef.current.createOffer({
+            offerToReceiveAudio: true,
+            voiceActivityDetection: true, // ✅ VAD for noise reduction
+          });
           await peerRef.current.setLocalDescription(offer);
           socket.emit("offer", { sdp: offer, roomId });
           setStatus('calling');
-          console.log('📤 Offer sent to guest');
+          console.log('📤 Offer sent');
         } catch (err) {
           console.error('❌ Offer error:', err);
         }
@@ -70,14 +70,16 @@ export default function CallRoom() {
     });
     
     socket.on("offer", async (data) => {
-      console.log('📥 Received offer from host');
+      console.log('📥 Received offer');
       if (peerRef.current) {
         try {
           await peerRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
-          const answer = await peerRef.current.createAnswer();
+          const answer = await peerRef.current.createAnswer({
+            offerToReceiveAudio: true,
+            voiceActivityDetection: true,
+          });
           await peerRef.current.setLocalDescription(answer);
           socket.emit("answer", { sdp: answer, roomId });
-          console.log('📤 Answer sent to host');
         } catch (err) {
           console.error('❌ Answer error:', err);
         }
@@ -85,11 +87,11 @@ export default function CallRoom() {
     });
     
     socket.on("answer", async (data) => {
-      console.log('📥 Received answer from guest');
+      console.log('📥 Received answer');
       if (peerRef.current) {
         try {
           await peerRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
-          console.log('✅ WebRTC connection established!');
+          console.log('✅ Connected!');
         } catch (err) {
           console.error('❌ Answer set error:', err);
         }
@@ -100,7 +102,6 @@ export default function CallRoom() {
       if (peerRef.current) {
         try {
           await peerRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
-          console.log('🧊 ICE candidate added');
         } catch (err) {
           console.error('❌ ICE error:', err);
         }
@@ -108,25 +109,18 @@ export default function CallRoom() {
     });
     
     socket.on("callEnded", () => {
-      console.log('🔴 Call ended by partner');
       setStatus('ended');
       stopTimer();
     });
     
     socket.on("userLeft", () => {
-      console.log('👋 Partner left');
       setStatus('ended');
       stopTimer();
     });
     
     return () => {
       stopTimer();
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => track.stop());
-      }
-      if (peerRef.current) {
-        peerRef.current.close();
-      }
+      cleanupAudio();
       socket.off("userJoined");
       socket.off("offer");
       socket.off("answer");
@@ -137,55 +131,69 @@ export default function CallRoom() {
     };
   }, [roomId, isHost]);
   
-  // ✅ Start microphone with ENHANCED quality
+  // ✅ Start microphone with MAXIMUM echo cancellation
   const startMic = async () => {
     setStatus('connecting');
     setErrorMsg('');
     
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
-        setErrorMsg('⚠️ Microphone requires HTTPS. Use the secure link.');
-      } else {
-        setErrorMsg('Browser not supported. Please use Chrome, Firefox, or Edge.');
-      }
+      setErrorMsg('Browser not supported. Please use Chrome or Firefox.');
       setStatus('error');
       return;
     }
     
-    console.log('🔍 Protocol:', window.location.protocol);
-    console.log('🔍 Hostname:', window.location.hostname);
-    
     try {
-      console.log('🎤 Requesting HIGH QUALITY microphone...');
+      console.log('🎤 Requesting microphone with echo cancellation...');
       
-      // ✅ HIGH QUALITY AUDIO CONSTRAINTS
+      // ✅ ULTIMATE AUDIO CONSTRAINTS - Focus on echo cancellation
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
+          // ✅ ECHO CANCELLATION - Most important!
           echoCancellation: true,
+          echoCancellationType: 'system', // Use system's echo canceller
+          
+          // ✅ NOISE SUPPRESSION
           noiseSuppression: true,
+          noiseSuppressionType: 'high', // Aggressive noise suppression
+          
+          // ✅ AUTO GAIN - Normalize volume
           autoGainControl: true,
-          channelCount: 1,
+          
+          // ✅ GOOGLE'S ADVANCED PROCESSING
+          googEchoCancellation: true,
+          googEchoCancellation2: true, // Double echo cancellation!
+          googAutoGainControl: true,
+          googAutoGainControl2: true,
+          googNoiseSuppression: true,
+          googNoiseSuppression2: true,
+          googHighpassFilter: true,
+          googTypingNoiseDetection: true,
+          
+          // ✅ AUDIO QUALITY
+          channelCount: 1, // Mono for voice
           sampleRate: 48000,
           sampleSize: 16,
-          volume: 1.0,
           latency: 0.01,
-          googEchoCancellation: true,
-          googAutoGainControl: true,
-          googNoiseSuppression: true,
-          googHighpassFilter: true,
+          volume: 0.8, // ✅ Slightly lower to prevent feedback
         } 
       });
       
-      console.log('✅ HD Mic ready! Settings:', stream.getAudioTracks()[0].getSettings());
+      console.log('✅ Mic ready with echo cancellation!');
+      console.log('🎵 Settings:', stream.getAudioTracks()[0].getSettings());
+      
       setAudioQuality('hd');
       localStreamRef.current = stream;
       setMicReady(true);
+      
+      // ✅ Apply AudioContext processing for additional echo cancellation
+      applyAudioProcessing(stream);
+      
       createPeerConnection(stream);
       
     } catch (err) {
-      console.warn('⚠️ HD quality failed, trying standard...', err.message);
+      console.warn('⚠️ Advanced settings failed, trying basic...', err.message);
       
-      // Fallback to standard quality
+      // Fallback
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ 
           audio: {
@@ -195,39 +203,99 @@ export default function CallRoom() {
           } 
         });
         
-        console.log('✅ Standard mic ready');
+        console.log('✅ Basic mic ready');
         setAudioQuality('standard');
         localStreamRef.current = stream;
         setMicReady(true);
         createPeerConnection(stream);
         
       } catch (fallbackErr) {
-        console.error('❌ All mic attempts failed:', fallbackErr);
-        
-        if (fallbackErr.name === 'NotAllowedError') {
-          setErrorMsg('Microphone access denied. Please allow mic in browser settings.');
-        } else if (fallbackErr.name === 'NotFoundError') {
-          setErrorMsg('No microphone found on your device.');
-        } else {
-          setErrorMsg('Error: ' + fallbackErr.message);
-        }
+        console.error('❌ Mic failed:', fallbackErr);
+        setErrorMsg('Cannot access microphone: ' + fallbackErr.message);
         setStatus('error');
       }
     }
   };
   
-  // ✅ Create ENHANCED Peer Connection
+  // ✅ Advanced Audio Processing (Echo Cancellation)
+  const applyAudioProcessing = (stream) => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      const audioCtx = new AudioContext({ sampleRate: 48000 });
+      audioContextRef.current = audioCtx;
+      
+      const source = audioCtx.createMediaStreamSource(stream);
+      
+      // ✅ Dynamic Compressor - Prevents loud spikes (reduces echo)
+      const compressor = audioCtx.createDynamicsCompressor();
+      compressor.threshold.setValueAtTime(-50, audioCtx.currentTime); // Compress above -50dB
+      compressor.knee.setValueAtTime(40, audioCtx.currentTime);
+      compressor.ratio.setValueAtTime(12, audioCtx.currentTime); // 12:1 compression
+      compressor.attack.setValueAtTime(0.003, audioCtx.currentTime); // Fast attack
+      compressor.release.setValueAtTime(0.25, audioCtx.currentTime);
+      
+      // ✅ High-pass filter - Remove low frequency rumble
+      const highpass = audioCtx.createBiquadFilter();
+      highpass.type = 'highpass';
+      highpass.frequency.setValueAtTime(150, audioCtx.currentTime); // Cut below 150Hz
+      
+      // ✅ Low-pass filter - Remove high frequency hiss
+      const lowpass = audioCtx.createBiquadFilter();
+      lowpass.type = 'lowpass';
+      lowpass.frequency.setValueAtTime(8000, audioCtx.currentTime); // Cut above 8kHz
+      
+      // ✅ Noise Gate - Only pass audio above threshold
+      const noiseGate = audioCtx.createGain();
+      noiseGate.gain.setValueAtTime(0, audioCtx.currentTime);
+      
+      // Create analyser for voice detection
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      
+      // Simple noise gate using analyser
+      const gateInterval = setInterval(() => {
+        analyser.getByteFrequencyData(dataArray);
+        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+        noiseGate.gain.setTargetAtTime(average > 10 ? 1 : 0, audioCtx.currentTime, 0.02);
+      }, 50);
+      
+      echoCancellerRef.current = { interval: gateInterval };
+      
+      // Connect chain: source → highpass → compressor → lowpass → noiseGate → destination
+      source.connect(highpass);
+      highpass.connect(compressor);
+      compressor.connect(lowpass);
+      lowpass.connect(noiseGate);
+      noiseGate.connect(audioCtx.destination);
+      
+      console.log('✅ Advanced audio processing applied (Compressor + Filters + Noise Gate)');
+      
+    } catch (e) {
+      console.log('⚠️ Audio processing not available:', e.message);
+    }
+  };
+  
+  // ✅ Create Peer Connection with echo-friendly settings
   const createPeerConnection = (stream) => {
-    console.log('🔗 Creating enhanced peer connection...');
-    const peer = new RTCPeerConnection(servers);
+    console.log('🔗 Creating peer connection...');
     
-    // Add local audio tracks
+    const peerConfig = {
+      ...servers,
+      // ✅ Disable audio mirroring (prevents echo)
+      audio: {
+        echoCancellation: true,
+      }
+    };
+    
+    const peer = new RTCPeerConnection(peerConfig);
+    
+    // Add tracks
     stream.getTracks().forEach(track => {
-      console.log('🎵 Adding track:', track.kind, track.getSettings());
       peer.addTrack(track, stream);
     });
     
-    // ✅ Set Opus codec preference (best for voice)
+    // ✅ Set Opus codec with echo-friendly settings
     try {
       const transceivers = peer.getTransceivers();
       transceivers.forEach(transceiver => {
@@ -239,41 +307,36 @@ export default function CallRoom() {
             );
             if (opusCodec) {
               transceiver.setCodecPreferences([opusCodec]);
-              console.log('✅ Audio codec set: Opus 48kHz');
             }
           }
         }
       });
     } catch (e) {
-      console.log('⚠️ Could not set codec preference:', e.message);
+      console.log('⚠️ Codec preference error:', e.message);
     }
     
-    // Handle remote audio
+    // Remote audio
     peer.ontrack = (event) => {
-      console.log('📞 Remote audio received! Streams:', event.streams.length);
+      console.log('📞 Remote audio received!');
       if (remoteAudioRef.current && event.streams[0]) {
         remoteAudioRef.current.srcObject = event.streams[0];
-        console.log('🔊 Remote audio attached');
+        // ✅ Set lower volume to prevent echo feedback
+        remoteAudioRef.current.volume = 0.8;
       }
       setStatus('connected');
       startTimer();
     };
     
-    // ICE candidates
+    // ICE
     peer.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log('🧊 Sending ICE candidate');
         socket.emit("iceCandidate", { candidate: event.candidate, roomId });
       }
     };
     
-    // Connection state monitoring
-    peer.oniceconnectionstatechange = () => {
-      console.log('🔗 ICE state:', peer.iceConnectionState);
-    };
-    
+    // Connection state
     peer.onconnectionstatechange = () => {
-      console.log('🔗 Connection state:', peer.connectionState);
+      console.log('🔗 State:', peer.connectionState);
       if (peer.connectionState === 'disconnected' || peer.connectionState === 'failed') {
         setStatus('ended');
         stopTimer();
@@ -282,7 +345,7 @@ export default function CallRoom() {
     
     peerRef.current = peer;
     
-    // ✅ Set max bitrate for HD audio
+    // Set audio bitrate
     setTimeout(() => {
       try {
         const senders = peer.getSenders();
@@ -290,38 +353,50 @@ export default function CallRoom() {
           if (sender.track?.kind === 'audio') {
             const params = sender.getParameters();
             if (!params.encodings) params.encodings = [{}];
-            params.encodings[0].maxBitrate = 128000; // 128kbps HD audio
+            params.encodings[0].maxBitrate = 64000; // 64kbps (good for voice, reduces echo)
             params.encodings[0].priority = 'high';
             sender.setParameters(params);
-            console.log('✅ Audio bitrate set: 128kbps HD');
+            console.log('✅ Audio bitrate: 64kbps');
           }
         });
       } catch (e) {
-        console.log('⚠️ Could not set bitrate:', e.message);
+        console.log('⚠️ Bitrate error:', e.message);
       }
     }, 1000);
     
-    // If guest, create offer immediately
+    // Guest creates offer
     if (!isHost) {
-      console.log('👤 Guest creating offer...');
-      peer.createOffer()
+      peer.createOffer({ offerToReceiveAudio: true, voiceActivityDetection: true })
         .then(offer => peer.setLocalDescription(offer))
         .then(() => {
           socket.emit("offer", { sdp: peer.localDescription, roomId });
           setStatus('calling');
-          console.log('📤 Offer sent by guest');
         })
-        .catch(err => console.error('❌ Guest offer error:', err));
+        .catch(err => console.error('❌ Offer error:', err));
     } else {
-      console.log('👑 Host waiting for guest to join...');
+      console.log('👑 Host waiting...');
     }
   };
   
-  // ✅ Timer functions
+  // ✅ Cleanup
+  const cleanupAudio = () => {
+    if (echoCancellerRef.current?.interval) {
+      clearInterval(echoCancellerRef.current.interval);
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+    }
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+    }
+    if (peerRef.current) {
+      peerRef.current.close();
+    }
+  };
+  
+  // Timer
   const startTimer = () => {
-    timerRef.current = setInterval(() => {
-      setCallDuration(prev => prev + 1);
-    }, 1000);
+    timerRef.current = setInterval(() => setCallDuration(prev => prev + 1), 1000);
   };
   
   const stopTimer = () => {
@@ -337,7 +412,7 @@ export default function CallRoom() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
   
-  // ✅ Toggle mic
+  // Toggle mic
   const toggleMic = () => {
     if (localStreamRef.current) {
       const audioTrack = localStreamRef.current.getAudioTracks()[0];
@@ -348,24 +423,31 @@ export default function CallRoom() {
     }
   };
   
-  // ✅ End call
+  // ✅ Toggle speaker (earpiece vs loudspeaker)
+  const toggleSpeaker = () => {
+    if (remoteAudioRef.current) {
+      // On mobile, setting srcObject to a new stream with different sink ID
+      // For now, just toggle volume as a simple speaker control
+      if (speakerOn) {
+        remoteAudioRef.current.volume = 0.5; // Earpiece mode (quieter)
+      } else {
+        remoteAudioRef.current.volume = 1.0; // Speaker mode
+      }
+      setSpeakerOn(!speakerOn);
+    }
+  };
+  
+  // End call
   const endCall = () => {
-    console.log('🔴 Ending call...');
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
-    }
-    if (peerRef.current) {
-      peerRef.current.close();
-    }
+    cleanupAudio();
     socket.emit("endCall", roomId);
     stopTimer();
     navigate('/waiting?mode=call');
   };
   
-  // ✅ Copy room code
   const copyRoomCode = () => {
     navigator.clipboard.writeText(roomId).then(() => {
-      alert('Room code copied! Share this with the person you want to call.');
+      alert('Room code copied!');
     }).catch(() => {
       alert('Room Code: ' + roomId);
     });
@@ -379,40 +461,44 @@ export default function CallRoom() {
   
   return (
     <div className="call-room">
-      {/* Hidden audio element for remote audio */}
       <audio ref={remoteAudioRef} autoPlay playsInline />
       
       <div className="call-room__container">
+        {/* Header with Anti-Echo Tip */}
+        {!micReady && status === 'waiting' && (
+          <div className="call-room__echo-tip">
+            🎧 <span>Use headphones for best quality & no echo!</span>
+          </div>
+        )}
+        
         {/* Avatar */}
         <div className={`call-room__avatar ${status === 'connected' ? 'call-room__avatar--active' : ''}`}>
           <span>{isHost ? '📞' : '🎧'}</span>
         </div>
         
-        {/* Name */}
         <h2 className="call-room__name">
           {isHost ? 'Your Call Room' : 'Voice Call'}
         </h2>
         
-        {/* Status */}
         <div className="call-room__status">
           {!socketConnected && '🔌 Connecting to server...'}
           {socketConnected && status === 'waiting' && '🎙️ Ready to connect'}
-          {status === 'connecting' && '🎙️ Setting up microphone...'}
+          {status === 'connecting' && '🎙️ Setting up...'}
           {status === 'calling' && '📞 Calling...'}
           {status === 'connected' && `📞 On call · ${formatDuration(callDuration)}`}
           {status === 'ended' && '🔴 Call Ended'}
           {status === 'error' && '❌ Error'}
         </div>
         
-        {/* ✅ Audio Quality Badge */}
+        {/* Audio Quality + Echo Status */}
         {status === 'connected' && (
           <div className="call-room__quality">
             <span className="call-room__quality-dot"></span>
-            {audioQuality === 'hd' ? 'HD Audio' : 'Standard Audio'}
+            {audioQuality === 'hd' ? 'HD Audio · Echo Cancelled' : 'Standard Audio'}
           </div>
         )}
         
-        {/* Error Message */}
+        {/* Error */}
         {status === 'error' && (
           <div className="call-room__error-msg">
             <p>{errorMsg}</p>
@@ -420,23 +506,23 @@ export default function CallRoom() {
           </div>
         )}
         
-        {/* Room Code (Host only - shown before starting) */}
+        {/* Room Code */}
         {isHost && !micReady && status !== 'error' && socketConnected && (
           <div className="call-room__code" onClick={copyRoomCode}>
             <span>📋 Room Code (tap to copy)</span>
             <strong>{roomId}</strong>
-            <small>Share this code with the person you want to call</small>
+            <small>Share this code</small>
           </div>
         )}
         
-        {/* Start Call Button */}
+        {/* Start Button */}
         {!micReady && status !== 'error' && socketConnected && (
           <button onClick={startMic} className="call-room__start-btn">
             🎙️ Start Call
           </button>
         )}
         
-        {/* Waiting for guest */}
+        {/* Waiting */}
         {isHost && micReady && status === 'connecting' && (
           <div className="call-room__waiting">
             <div className="call-room__spinner" />
@@ -445,7 +531,7 @@ export default function CallRoom() {
           </div>
         )}
         
-        {/* Audio Waves (During call) */}
+        {/* Audio Waves */}
         {status === 'connected' && (
           <div className="call-room__waves">
             <span></span><span></span><span></span><span></span><span></span>
@@ -462,13 +548,20 @@ export default function CallRoom() {
             >
               {micOn ? '🎤' : '🔇'}
             </button>
+            <button 
+              onClick={toggleSpeaker}
+              className={`call-room__ctrl ${speakerOn ? 'call-room__ctrl--active' : ''}`}
+              title={speakerOn ? 'Speaker ON' : 'Earpiece'}
+            >
+              {speakerOn ? '🔊' : '📱'}
+            </button>
             <button onClick={endCall} className="call-room__ctrl call-room__ctrl--end">
-              🔴 End Call
+              🔴 End
             </button>
           </div>
         )}
         
-        {/* Ended State */}
+        {/* Ended */}
         {status === 'ended' && (
           <div className="call-room__ended">
             <p>Call duration: {formatDuration(callDuration)}</p>

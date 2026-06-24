@@ -226,7 +226,31 @@ $lime: #84cc16;
 
     &:hover { background: rgba(255,255,255,0.25); }
   }
+  // ✅ Echo prevention tip
+&__echo-tip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 20px;
+  text-align: left;
+  
+  span { flex: 1; }
 }
+
+// ✅ Active control button
+&__ctrl--active {
+  background: rgba($lime, 0.3) !important;
+}
+}
+
+
 
 @keyframes pulse-avatar {
   0%, 100% { box-shadow: 0 0 0 8px rgba($lime, 0.2); }
