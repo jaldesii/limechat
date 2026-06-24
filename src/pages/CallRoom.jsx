@@ -112,13 +112,27 @@ export default function CallRoom() {
   const noiseGateNodeRef = useRef(null);
   const rnnoiseAssetsRef = useRef(null); // cached wasm binary so reconnects don't refetch
   
-  const servers = {
+ const servers = {
     iceServers: [
+      // ✅ FREE STUN Servers (Google) - Direct P2P
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
       { urls: 'stun:stun3.l.google.com:19302' },
       { urls: 'stun:stun4.l.google.com:19302' },
+      
+      // ✅ FREE TURN Server (Metered.ca - 50GB/month)
+      // Fallback for users behind firewalls/NAT
+      {
+          urls: "turn:global.relay.metered.ca:80",
+        username: "8825922c875255b58f22d112",
+        credential: "nqgOBZYxyPARuQWW",
+      },
+      {
+         urls: "turn:global.relay.metered.ca:80",
+        username: "8825922c875255b58f22d112",
+        credential: "nqgOBZYxyPARuQWW",
+      },
     ],
     iceCandidatePoolSize: 10,
   };
