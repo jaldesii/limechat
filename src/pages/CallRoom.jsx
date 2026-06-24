@@ -11,7 +11,8 @@ export default function CallRoom() {
   
   const [status, setStatus] = useState('waiting');
   const [micOn, setMicOn] = useState(true);
-  const [speakerOn, setSpeakerOn] = useState(false); // ✅ Speaker toggle
+  const [speakerOn, setSpeakerOn] = useState(false);
+  const [volumeBoosted, setVolumeBoosted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [micReady, setMicReady] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -24,9 +25,7 @@ export default function CallRoom() {
   const localStreamRef = useRef(null);
   const timerRef = useRef(null);
   const audioContextRef = useRef(null);
-  const echoCancellerRef = useRef(null);
   
-  // ✅ ENHANCED Servers config
   const servers = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
@@ -38,11 +37,8 @@ export default function CallRoom() {
     iceCandidatePoolSize: 10,
   };
 
-  // ✅ Setup socket listeners
   useEffect(() => {
-    console.log('📍 CallRoom loaded');
-    console.log('📍 Room ID:', roomId);
-    console.log('📍 Is Host:', isHost);
+    console.log('📍 CallRoom loaded - Room:', roomId);
     
     if (socket.connected) {
       setSocketConnected(true);
@@ -50,14 +46,13 @@ export default function CallRoom() {
       socket.on('connect', () => setSocketConnected(true));
     }
     
-    // WebRTC Signaling
     socket.on("userJoined", async (data) => {
       console.log('👋 Guest joined!');
       if (peerRef.current && isHost) {
         try {
           const offer = await peerRef.current.createOffer({
             offerToReceiveAudio: true,
-            voiceActivityDetection: true, // ✅ VAD for noise reduction
+            voiceActivityDetection: true,
           });
           await peerRef.current.setLocalDescription(offer);
           socket.emit("offer", { sdp: offer, roomId });
@@ -93,7 +88,7 @@ export default function CallRoom() {
           await peerRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
           console.log('✅ Connected!');
         } catch (err) {
-          console.error('❌ Answer set error:', err);
+          console.error('❌ Answer error:', err);
         }
       }
     });
@@ -108,98 +103,82 @@ export default function CallRoom() {
       }
     });
     
-    socket.on("callEnded", () => {
-      setStatus('ended');
-      stopTimer();
-    });
-    
-    socket.on("userLeft", () => {
-      setStatus('ended');
-      stopTimer();
-    });
+    socket.on("callEnded", () => { setStatus('ended'); stopTimer(); });
+    socket.on("userLeft", () => { setStatus('ended'); stopTimer(); });
     
     return () => {
       stopTimer();
       cleanupAudio();
-      socket.off("userJoined");
-      socket.off("offer");
-      socket.off("answer");
-      socket.off("iceCandidate");
-      socket.off("callEnded");
-      socket.off("userLeft");
+      socket.off("userJoined"); socket.off("offer"); socket.off("answer");
+      socket.off("iceCandidate"); socket.off("callEnded"); socket.off("userLeft");
       socket.off("connect");
     };
   }, [roomId, isHost]);
   
-  // ✅ Start microphone with MAXIMUM echo cancellation
+  // ✅ Start mic - ECHO CANCELLATION ON + MAX VOLUME
   const startMic = async () => {
     setStatus('connecting');
     setErrorMsg('');
     
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setErrorMsg('Browser not supported. Please use Chrome or Firefox.');
+      setErrorMsg('Browser not supported. Use Chrome or Firefox.');
       setStatus('error');
       return;
     }
     
     try {
-      console.log('🎤 Requesting microphone with echo cancellation...');
+      console.log('🎤 Requesting mic (Echo Cancellation ON, Max Volume)...');
       
-      // ✅ ULTIMATE AUDIO CONSTRAINTS - Focus on echo cancellation
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
-          // ✅ ECHO CANCELLATION - Most important!
-          echoCancellation: true,
-          echoCancellationType: 'system', // Use system's echo canceller
-          
-          // ✅ NOISE SUPPRESSION
-          noiseSuppression: true,
-          noiseSuppressionType: 'high', // Aggressive noise suppression
-          
-          // ✅ AUTO GAIN - Normalize volume
-          autoGainControl: true,
-          
-          // ✅ GOOGLE'S ADVANCED PROCESSING
+          // ============================================
+          // ✅ ECHO CANCELLATION - KEPT!
+          // ============================================
+          echoCancellation: { exact: true },
           googEchoCancellation: true,
-          googEchoCancellation2: true, // Double echo cancellation!
-          googAutoGainControl: true,
-          googAutoGainControl2: true,
-          googNoiseSuppression: true,
-          googNoiseSuppression2: true,
-          googHighpassFilter: true,
-          googTypingNoiseDetection: true,
+          googEchoCancellation2: true,
           
-          // ✅ AUDIO QUALITY
-          channelCount: 1, // Mono for voice
+          // ============================================
+          // ✅ NOISE SUPPRESSION - KEPT (light)
+          // ============================================
+          noiseSuppression: { ideal: true },
+          googNoiseSuppression: true,
+          
+          // ============================================
+          // ✅ AUTO GAIN - KEPT (for consistent volume)
+          // ============================================
+          autoGainControl: { ideal: true },
+          googAutoGainControl: true,
+          
+          // ============================================
+          // ✅ HIGH QUALITY + MAX VOLUME
+          // ============================================
+          channelCount: 1,
           sampleRate: 48000,
           sampleSize: 16,
+          volume: 1.0, // FULL VOLUME
           latency: 0.01,
-          volume: 0.8, // ✅ Slightly lower to prevent feedback
+          googHighpassFilter: true, // Removes rumble only
         } 
       });
       
-      console.log('✅ Mic ready with echo cancellation!');
+      console.log('✅ Mic ready! Echo Cancelled + Full Volume');
       console.log('🎵 Settings:', stream.getAudioTracks()[0].getSettings());
       
       setAudioQuality('hd');
       localStreamRef.current = stream;
       setMicReady(true);
-      
-      // ✅ Apply AudioContext processing for additional echo cancellation
-      applyAudioProcessing(stream);
-      
       createPeerConnection(stream);
       
     } catch (err) {
-      console.warn('⚠️ Advanced settings failed, trying basic...', err.message);
-      
-      // Fallback
+      console.warn('⚠️ Advanced failed, trying basic...');
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ 
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true,
+            volume: 1.0,
           } 
         });
         
@@ -217,135 +196,40 @@ export default function CallRoom() {
     }
   };
   
-  // ✅ Advanced Audio Processing (Echo Cancellation)
-  const applyAudioProcessing = (stream) => {
-    try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      const audioCtx = new AudioContext({ sampleRate: 48000 });
-      audioContextRef.current = audioCtx;
-      
-      const source = audioCtx.createMediaStreamSource(stream);
-      
-      // ✅ Dynamic Compressor - Prevents loud spikes (reduces echo)
-      const compressor = audioCtx.createDynamicsCompressor();
-      compressor.threshold.setValueAtTime(-50, audioCtx.currentTime); // Compress above -50dB
-      compressor.knee.setValueAtTime(40, audioCtx.currentTime);
-      compressor.ratio.setValueAtTime(12, audioCtx.currentTime); // 12:1 compression
-      compressor.attack.setValueAtTime(0.003, audioCtx.currentTime); // Fast attack
-      compressor.release.setValueAtTime(0.25, audioCtx.currentTime);
-      
-      // ✅ High-pass filter - Remove low frequency rumble
-      const highpass = audioCtx.createBiquadFilter();
-      highpass.type = 'highpass';
-      highpass.frequency.setValueAtTime(150, audioCtx.currentTime); // Cut below 150Hz
-      
-      // ✅ Low-pass filter - Remove high frequency hiss
-      const lowpass = audioCtx.createBiquadFilter();
-      lowpass.type = 'lowpass';
-      lowpass.frequency.setValueAtTime(8000, audioCtx.currentTime); // Cut above 8kHz
-      
-      // ✅ Noise Gate - Only pass audio above threshold
-      const noiseGate = audioCtx.createGain();
-      noiseGate.gain.setValueAtTime(0, audioCtx.currentTime);
-      
-      // Create analyser for voice detection
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      
-      // Simple noise gate using analyser
-      const gateInterval = setInterval(() => {
-        analyser.getByteFrequencyData(dataArray);
-        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-        noiseGate.gain.setTargetAtTime(average > 10 ? 1 : 0, audioCtx.currentTime, 0.02);
-      }, 50);
-      
-      echoCancellerRef.current = { interval: gateInterval };
-      
-      // Connect chain: source → highpass → compressor → lowpass → noiseGate → destination
-      source.connect(highpass);
-      highpass.connect(compressor);
-      compressor.connect(lowpass);
-      lowpass.connect(noiseGate);
-      noiseGate.connect(audioCtx.destination);
-      
-      console.log('✅ Advanced audio processing applied (Compressor + Filters + Noise Gate)');
-      
-    } catch (e) {
-      console.log('⚠️ Audio processing not available:', e.message);
-    }
-  };
-  
-  // ✅ Create Peer Connection with echo-friendly settings
+  // ✅ Create Peer Connection - HIGH BITRATE
   const createPeerConnection = (stream) => {
     console.log('🔗 Creating peer connection...');
+    const peer = new RTCPeerConnection(servers);
     
-    const peerConfig = {
-      ...servers,
-      // ✅ Disable audio mirroring (prevents echo)
-      audio: {
-        echoCancellation: true,
-      }
-    };
-    
-    const peer = new RTCPeerConnection(peerConfig);
-    
-    // Add tracks
     stream.getTracks().forEach(track => {
+      console.log('🎵 Track:', track.kind, track.getSettings());
       peer.addTrack(track, stream);
     });
     
-    // ✅ Set Opus codec with echo-friendly settings
-    try {
-      const transceivers = peer.getTransceivers();
-      transceivers.forEach(transceiver => {
-        if (transceiver.sender && transceiver.sender.track?.kind === 'audio') {
-          const capabilities = RTCRtpSender.getCapabilities('audio');
-          if (capabilities) {
-            const opusCodec = capabilities.codecs.find(codec => 
-              codec.mimeType === 'audio/opus' && codec.clockRate === 48000
-            );
-            if (opusCodec) {
-              transceiver.setCodecPreferences([opusCodec]);
-            }
-          }
-        }
-      });
-    } catch (e) {
-      console.log('⚠️ Codec preference error:', e.message);
-    }
-    
-    // Remote audio
+    // Remote audio - FULL VOLUME
     peer.ontrack = (event) => {
-      console.log('📞 Remote audio received!');
+      console.log('📞 Remote audio!');
       if (remoteAudioRef.current && event.streams[0]) {
         remoteAudioRef.current.srcObject = event.streams[0];
-        // ✅ Set lower volume to prevent echo feedback
-        remoteAudioRef.current.volume = 0.8;
+        remoteAudioRef.current.volume = 1.0; // FULL VOLUME
       }
       setStatus('connected');
       startTimer();
     };
     
-    // ICE
     peer.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.emit("iceCandidate", { candidate: event.candidate, roomId });
-      }
+      if (event.candidate) socket.emit("iceCandidate", { candidate: event.candidate, roomId });
     };
     
-    // Connection state
     peer.onconnectionstatechange = () => {
-      console.log('🔗 State:', peer.connectionState);
       if (peer.connectionState === 'disconnected' || peer.connectionState === 'failed') {
-        setStatus('ended');
-        stopTimer();
+        setStatus('ended'); stopTimer();
       }
     };
     
     peerRef.current = peer;
     
-    // Set audio bitrate
+    // ✅ HIGH BITRATE = CLEARER + LOUDER
     setTimeout(() => {
       try {
         const senders = peer.getSenders();
@@ -353,136 +237,99 @@ export default function CallRoom() {
           if (sender.track?.kind === 'audio') {
             const params = sender.getParameters();
             if (!params.encodings) params.encodings = [{}];
-            params.encodings[0].maxBitrate = 64000; // 64kbps (good for voice, reduces echo)
-            params.encodings[0].priority = 'high';
+            params.encodings[0].maxBitrate = 256000; // 256kbps HD
+            params.encodings[0].priority = 'very-high';
             sender.setParameters(params);
-            console.log('✅ Audio bitrate: 64kbps');
+            console.log('✅ Bitrate: 256kbps HD Audio');
           }
         });
-      } catch (e) {
-        console.log('⚠️ Bitrate error:', e.message);
-      }
+      } catch (e) { console.log('⚠️ Bitrate:', e.message); }
     }, 1000);
     
-    // Guest creates offer
     if (!isHost) {
       peer.createOffer({ offerToReceiveAudio: true, voiceActivityDetection: true })
         .then(offer => peer.setLocalDescription(offer))
-        .then(() => {
-          socket.emit("offer", { sdp: peer.localDescription, roomId });
-          setStatus('calling');
-        })
-        .catch(err => console.error('❌ Offer error:', err));
+        .then(() => { socket.emit("offer", { sdp: peer.localDescription, roomId }); setStatus('calling'); })
+        .catch(err => console.error('❌ Offer:', err));
     } else {
       console.log('👑 Host waiting...');
     }
   };
   
-  // ✅ Cleanup
   const cleanupAudio = () => {
-    if (echoCancellerRef.current?.interval) {
-      clearInterval(echoCancellerRef.current.interval);
-    }
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-    }
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
-    }
-    if (peerRef.current) {
-      peerRef.current.close();
-    }
+    if (audioContextRef.current?.ctx) audioContextRef.current.ctx.close();
+    if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop());
+    if (peerRef.current) peerRef.current.close();
   };
   
   // Timer
-  const startTimer = () => {
-    timerRef.current = setInterval(() => setCallDuration(prev => prev + 1), 1000);
-  };
+  const startTimer = () => { timerRef.current = setInterval(() => setCallDuration(p => p + 1), 1000); };
+  const stopTimer = () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
+  const formatDuration = (s) => `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
   
-  const stopTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-  
-  const formatDuration = (seconds) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
-  
-  // Toggle mic
   const toggleMic = () => {
     if (localStreamRef.current) {
-      const audioTrack = localStreamRef.current.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        setMicOn(audioTrack.enabled);
-      }
+      const t = localStreamRef.current.getAudioTracks()[0];
+      if (t) { t.enabled = !t.enabled; setMicOn(t.enabled); }
     }
   };
   
-  // ✅ Toggle speaker (earpiece vs loudspeaker)
   const toggleSpeaker = () => {
     if (remoteAudioRef.current) {
-      // On mobile, setting srcObject to a new stream with different sink ID
-      // For now, just toggle volume as a simple speaker control
-      if (speakerOn) {
-        remoteAudioRef.current.volume = 0.5; // Earpiece mode (quieter)
-      } else {
-        remoteAudioRef.current.volume = 1.0; // Speaker mode
-      }
+      remoteAudioRef.current.volume = speakerOn ? 1.0 : 0.5;
       setSpeakerOn(!speakerOn);
     }
   };
   
-  // End call
-  const endCall = () => {
-    cleanupAudio();
-    socket.emit("endCall", roomId);
-    stopTimer();
-    navigate('/waiting?mode=call');
+  // ✅ Volume Boost
+  const boostVolume = () => {
+    if (remoteAudioRef.current) {
+      if (!volumeBoosted) {
+        try {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          const ctx = new AudioContext();
+          const source = ctx.createMediaElementSource(remoteAudioRef.current);
+          const gainNode = ctx.createGain();
+          gainNode.gain.value = 2.0; // 2x boost!
+          source.connect(gainNode);
+          gainNode.connect(ctx.destination);
+          audioContextRef.current = { ctx, gainNode };
+          console.log('🔊 Volume Boost ON (2x)');
+        } catch (e) {
+          remoteAudioRef.current.volume = 2.0;
+        }
+      } else {
+        if (audioContextRef.current?.ctx) {
+          audioContextRef.current.gainNode.gain.value = 1.0;
+        }
+        remoteAudioRef.current.volume = 1.0;
+      }
+      setVolumeBoosted(!volumeBoosted);
+    }
   };
   
-  const copyRoomCode = () => {
-    navigator.clipboard.writeText(roomId).then(() => {
-      alert('Room code copied!');
-    }).catch(() => {
-      alert('Room Code: ' + roomId);
-    });
-  };
-  
-  const retryMic = () => {
-    setStatus('waiting');
-    setErrorMsg('');
-    setMicReady(false);
-  };
+  const endCall = () => { cleanupAudio(); socket.emit("endCall", roomId); stopTimer(); navigate('/waiting?mode=call'); };
+  const copyRoomCode = () => { navigator.clipboard.writeText(roomId).then(() => alert('Room code copied!')).catch(() => alert('Room Code: ' + roomId)); };
+  const retryMic = () => { setStatus('waiting'); setErrorMsg(''); setMicReady(false); };
   
   return (
     <div className="call-room">
       <audio ref={remoteAudioRef} autoPlay playsInline />
       
       <div className="call-room__container">
-        {/* Header with Anti-Echo Tip */}
         {!micReady && status === 'waiting' && (
-          <div className="call-room__echo-tip">
-            🎧 <span>Use headphones for best quality & no echo!</span>
-          </div>
+          <div className="call-room__echo-tip">🎧 <span>Use headphones for best quality & no echo!</span></div>
         )}
         
-        {/* Avatar */}
         <div className={`call-room__avatar ${status === 'connected' ? 'call-room__avatar--active' : ''}`}>
           <span>{isHost ? '📞' : '🎧'}</span>
         </div>
         
-        <h2 className="call-room__name">
-          {isHost ? 'Your Call Room' : 'Voice Call'}
-        </h2>
+        <h2 className="call-room__name">{isHost ? 'Your Call Room' : 'Voice Call'}</h2>
         
         <div className="call-room__status">
-          {!socketConnected && '🔌 Connecting to server...'}
-          {socketConnected && status === 'waiting' && '🎙️ Ready to connect'}
+          {!socketConnected && '🔌 Connecting...'}
+          {socketConnected && status === 'waiting' && '🎙️ Ready'}
           {status === 'connecting' && '🎙️ Setting up...'}
           {status === 'calling' && '📞 Calling...'}
           {status === 'connected' && `📞 On call · ${formatDuration(callDuration)}`}
@@ -490,15 +337,14 @@ export default function CallRoom() {
           {status === 'error' && '❌ Error'}
         </div>
         
-        {/* Audio Quality + Echo Status */}
         {status === 'connected' && (
           <div className="call-room__quality">
             <span className="call-room__quality-dot"></span>
             {audioQuality === 'hd' ? 'HD Audio · Echo Cancelled' : 'Standard Audio'}
+            {volumeBoosted && ' · 🔊 Boosted'}
           </div>
         )}
         
-        {/* Error */}
         {status === 'error' && (
           <div className="call-room__error-msg">
             <p>{errorMsg}</p>
@@ -506,7 +352,6 @@ export default function CallRoom() {
           </div>
         )}
         
-        {/* Room Code */}
         {isHost && !micReady && status !== 'error' && socketConnected && (
           <div className="call-room__code" onClick={copyRoomCode}>
             <span>📋 Room Code (tap to copy)</span>
@@ -515,14 +360,10 @@ export default function CallRoom() {
           </div>
         )}
         
-        {/* Start Button */}
         {!micReady && status !== 'error' && socketConnected && (
-          <button onClick={startMic} className="call-room__start-btn">
-            🎙️ Start Call
-          </button>
+          <button onClick={startMic} className="call-room__start-btn">🎙️ Start Call</button>
         )}
         
-        {/* Waiting */}
         {isHost && micReady && status === 'connecting' && (
           <div className="call-room__waiting">
             <div className="call-room__spinner" />
@@ -531,43 +372,31 @@ export default function CallRoom() {
           </div>
         )}
         
-        {/* Audio Waves */}
         {status === 'connected' && (
           <div className="call-room__waves">
             <span></span><span></span><span></span><span></span><span></span>
           </div>
         )}
         
-        {/* Controls */}
         {(status === 'connected' || status === 'calling') && (
           <div className="call-room__controls">
-            <button 
-              onClick={toggleMic}
-              className={`call-room__ctrl ${micOn ? '' : 'call-room__ctrl--off'}`}
-              title={micOn ? 'Mute' : 'Unmute'}
-            >
+            <button onClick={toggleMic} className={`call-room__ctrl ${micOn ? '' : 'call-room__ctrl--off'}`} title={micOn ? 'Mute' : 'Unmute'}>
               {micOn ? '🎤' : '🔇'}
             </button>
-            <button 
-              onClick={toggleSpeaker}
-              className={`call-room__ctrl ${speakerOn ? 'call-room__ctrl--active' : ''}`}
-              title={speakerOn ? 'Speaker ON' : 'Earpiece'}
-            >
+            <button onClick={toggleSpeaker} className={`call-room__ctrl ${speakerOn ? 'call-room__ctrl--active' : ''}`} title={speakerOn ? 'Speaker' : 'Earpiece'}>
               {speakerOn ? '🔊' : '📱'}
             </button>
-            <button onClick={endCall} className="call-room__ctrl call-room__ctrl--end">
-              🔴 End
+            <button onClick={boostVolume} className={`call-room__ctrl ${volumeBoosted ? 'call-room__ctrl--active' : ''}`} title="Volume Boost">
+              {volumeBoosted ? '🔊+' : '🔊'}
             </button>
+            <button onClick={endCall} className="call-room__ctrl call-room__ctrl--end">🔴</button>
           </div>
         )}
         
-        {/* Ended */}
         {status === 'ended' && (
           <div className="call-room__ended">
             <p>Call duration: {formatDuration(callDuration)}</p>
-            <button onClick={() => navigate('/waiting?mode=call')} className="call-room__back-btn">
-              ← Back to Calls
-            </button>
+            <button onClick={() => navigate('/waiting?mode=call')} className="call-room__back-btn">← Back</button>
           </div>
         )}
       </div>
