@@ -8,6 +8,7 @@ import ChatRoom from "./pages/ChatRoom";
 import AdminPanel from "./pages/AdminPanel";
 import FAQ from "./pages/FAQ";
 import CallRoom from "./pages/CallRoom";
+import GroupCallRoom from "./pages/GroupCallRoom";
 function App() {
   return (
     <DarkModeProvider>
@@ -20,6 +21,7 @@ function App() {
           <Route path="/faq" element={<FAQ />} />
           <Route path="/chat/:roomId" element={<ChatRoom />} />
           <Route path="/call/:roomId" element={<CallRoom />} />
+          <Route path="/group-call/:roomId" element={<GroupCallRoom />} />
           <Route path="/lime-admin-7x9q" element={<AdminPanel />} />
         </Routes>
       </Router>

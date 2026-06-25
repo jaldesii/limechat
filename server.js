@@ -18,7 +18,7 @@ const io = new Server(server, {
 });
 
 // ============================================
-// ✅ HEALTH CHECK ENDPOINT (For Render)
+// ✅ HEALTH CHECK ENDPOINT
 // ============================================
 app.get('/health', (req, res) => {
   res.status(200).json({ 
@@ -29,9 +29,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// ============================================
-// ✅ ROOT ENDPOINT
-// ============================================
 app.get('/api', (req, res) => {
   res.status(200).json({ 
     name: 'CallChat API',
@@ -49,25 +46,22 @@ const uniqueVisitors = new Set();
 let currentAnnouncement = null;
 let expireTimeout = null;
 
-// ✅ Group Chat
 let groups = [];
-
-// ✅ Voice Call Rooms
 const callRooms = new Map();
-
-// ✅ VOICE CALL QUEUE (Auto-match)
 let callQueue = [];
+const groupCallRooms = new Map();
 
-// ✅ Anti-Spam: Rate limiting
 const messageTimestamps = {};
 const userMessageHistory = {};
 const suspiciousUsers = new Set();
-
-// ✅ Ban System
 const bannedUsers = new Set();
 const bannedIPs = new Set();
 
-// ✅ Helper: Generate room code
+// ✅ Safe callback helper
+const safeCallback = (callback) => {
+    return (typeof callback === 'function') ? callback : () => {};
+};
+
 function generateRoomCode() {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
@@ -92,7 +86,6 @@ setInterval(() => {
     });
     groups = groups.filter(g => g.users.length > 0);
     
-    // ✅ Clean up stale call rooms & queue
     callRooms.forEach((room, roomId) => {
         if (now - room.createdAt > 30 * 60 * 1000) {
             callRooms.delete(roomId);
@@ -100,7 +93,13 @@ setInterval(() => {
         }
     });
     
-    // Clean stale call queue (older than 5 minutes)
+    groupCallRooms.forEach((room, roomId) => {
+        if (now - room.createdAt > 30 * 60 * 1000) {
+            groupCallRooms.delete(roomId);
+            console.log(`🗑️ Stale group call room deleted: ${roomId}`);
+        }
+    });
+    
     callQueue = callQueue.filter(u => now - u.joinedAt < 5 * 60 * 1000);
     
     broadcastAdminUpdate();
@@ -119,6 +118,7 @@ app.get("/status", (req, res) => res.json({
     groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length })),
     callRooms: callRooms.size,
     callQueue: callQueue.length,
+    groupCallRooms: groupCallRooms.size,
     suspiciousUsers: suspiciousUsers.size,
     bannedCount: bannedUsers.size
 }));
@@ -145,18 +145,14 @@ function getGroupMemberList(group) {
 
 function isSpamming(socketId, message) {
     const now = Date.now();
-    
     if (!messageTimestamps[socketId]) messageTimestamps[socketId] = [];
     if (!userMessageHistory[socketId]) userMessageHistory[socketId] = { messages: [], lastActive: now };
-    
     userMessageHistory[socketId].lastActive = now;
     messageTimestamps[socketId] = messageTimestamps[socketId].filter(t => now - t < 3000);
-    
     if (messageTimestamps[socketId].length >= 3) {
         console.log(`🚫 Rate limit: ${socketId}`);
         return 'Too fast! Slow down.';
     }
-    
     const history = userMessageHistory[socketId].messages;
     const repeated = history.filter(m => m === message).length;
     if (repeated >= 1) {
@@ -164,47 +160,73 @@ function isSpamming(socketId, message) {
         console.log(`🚫 Duplicate spam: ${socketId}`);
         return 'Suspicious activity detected.';
     }
-    
     messageTimestamps[socketId].push(now);
     history.push(message);
     if (history.length > 10) history.shift();
-    
     return null;
 }
 
-// ✅ Auto-match call queue function
+function getGroupCallParticipants(groupCallRoomId) {
+    const participants = [];
+    const room = io.sockets.adapter.rooms.get(groupCallRoomId);
+    const callRoom = groupCallRooms.get(groupCallRoomId);
+    
+    if (!room || room.size === 0) {
+        return [];
+    }
+    
+    room.forEach(socketId => {
+        let name = callRoom?.participants?.get(socketId);
+        
+        if (!name || name === 'Unknown' || name === 'Anonymous') {
+            const user = allUsers.find(u => u.socketId === socketId);
+            name = user?.name;
+        }
+        
+        if (!name || name === 'Unknown' || name === 'Anonymous') {
+            const socket = io.sockets.sockets.get(socketId);
+            if (socket) {
+                name = socket.handshake?.query?.name || socket.handshake?.query?.userName;
+            }
+        }
+        
+        if (!name || name === 'Unknown' || name === 'Anonymous') {
+            for (const group of groups) {
+                const member = group.users.find(u => u.socketId === socketId);
+                if (member) {
+                    name = member.name;
+                    break;
+                }
+            }
+        }
+        
+        if (!name || name === 'Anonymous' || name === 'Unknown') {
+            name = 'Participant';
+        }
+        
+        participants.push({ 
+            socketId: socketId, 
+            name: name,
+            isActive: true 
+        });
+    });
+    
+    return participants;
+}
+
 function tryMatchCallQueue() {
     if (callQueue.length >= 2) {
         const user1 = callQueue.shift();
         const user2 = callQueue.shift();
-        
         const roomId = 'call-' + Date.now();
         const s1 = io.sockets.sockets.get(user1.socketId);
         const s2 = io.sockets.sockets.get(user2.socketId);
-        
         if (s1 && s2) {
             s1.join(roomId);
             s2.join(roomId);
-            
-            callRooms.set(roomId, {
-                creator: user1.socketId,
-                participants: [user1.socketId, user2.socketId],
-                createdAt: Date.now()
-            });
-            
-            // Tell user1 they're host with partner info
-            s1.emit("callMatched", { 
-                roomId, 
-                isHost: true, 
-                partner: { name: user2.name, location: user2.location }
-            });
-            // Tell user2 they're guest with partner info
-            s2.emit("callMatched", { 
-                roomId, 
-                isHost: false, 
-                partner: { name: user1.name, location: user1.location }
-            });
-            
+            callRooms.set(roomId, { creator: user1.socketId, participants: [user1.socketId, user2.socketId], createdAt: Date.now() });
+            s1.emit("callMatched", { roomId, isHost: true, partner: { name: user2.name, location: user2.location } });
+            s2.emit("callMatched", { roomId, isHost: false, partner: { name: user1.name, location: user1.location } });
             console.log(`✅ Call matched! Room: ${roomId} | ${user1.name} ↔ ${user2.name}`);
         }
     }
@@ -213,96 +235,163 @@ function tryMatchCallQueue() {
 io.on("connection", (socket) => {
     const isAdmin = socket.handshake.query.role === 'admin';
     
-    // ============================================
-    // ✅ VOICE CALL HANDLERS (For regular users)
-    // ============================================
     if (!isAdmin) {
-        // ✅ JOIN CALL QUEUE (Auto-match)
         socket.on("joinCallQueue", (user) => {
             callQueue = callQueue.filter(u => u.socketId !== socket.id);
-            
-            callQueue.push({
-                socketId: socket.id,
-                name: user.name,
-                location: user.location,
-                joinedAt: Date.now()
-            });
-            
+            callQueue.push({ socketId: socket.id, name: user.name, location: user.location, joinedAt: Date.now() });
             console.log(`📞 Call queue: ${callQueue.length} user(s)`);
             tryMatchCallQueue();
         });
         
-        // ✅ LEAVE CALL QUEUE
         socket.on("leaveCallQueue", () => {
             callQueue = callQueue.filter(u => u.socketId !== socket.id);
             console.log(`👋 Left call queue: ${socket.id}`);
         });
 
-        // ✅ SEND PARTNER INFO (For displaying name + location)
         socket.on("sendCallPartnerInfo", (data) => {
-            socket.to(data.roomId).emit("callPartnerInfo", {
-                name: data.name,
-                location: data.location
-            });
+            socket.to(data.roomId).emit("callPartnerInfo", { name: data.name, location: data.location });
         });
 
-        // Create call room (manual)
         socket.on("createRoom", (callback) => {
+            const cb = safeCallback(callback);
             const roomId = generateRoomCode();
-            callRooms.set(roomId, {
-                creator: socket.id,
-                participants: [socket.id],
-                createdAt: Date.now()
-            });
+            callRooms.set(roomId, { creator: socket.id, participants: [socket.id], createdAt: Date.now() });
             socket.join(roomId);
-            callback({ roomId });
+            cb({ roomId });
             console.log(`📞 Call room created: ${roomId} by ${socket.id}`);
         });
 
-        // Join call room (manual)
         socket.on("joinRoom", (roomId, callback) => {
+            const cb = safeCallback(callback);
             const room = callRooms.get(roomId);
-            
-            if (!room) {
-                callback({ error: "Room not found or expired" });
-                return;
-            }
-            
-            if (room.participants.length >= 2) {
-                callback({ error: "Room is full (max 2 people)" });
-                return;
-            }
-            
-            if (room.participants.includes(socket.id)) {
-                callback({ error: "You cannot join your own room" });
-                return;
-            }
-            
+            if (!room) { cb({ error: "Room not found or expired" }); return; }
+            if (room.participants.length >= 2) { cb({ error: "Room is full (max 2 people)" }); return; }
+            if (room.participants.includes(socket.id)) { cb({ error: "You cannot join your own room" }); return; }
             room.participants.push(socket.id);
             socket.join(roomId);
             socket.to(roomId).emit("userJoined", { userId: socket.id });
-            callback({ success: true, roomId });
+            cb({ success: true, roomId });
             console.log(`👋 User ${socket.id} joined call: ${roomId}`);
         });
 
-        // End call
         socket.on("endCall", (roomId) => {
             socket.to(roomId).emit("callEnded");
             cleanupCallRoom(roomId, socket);
             console.log(`🔴 Call ended: ${roomId}`);
         });
 
-        // WebRTC Signaling
-        socket.on("offer", (data) => {
-            socket.to(data.roomId).emit("offer", data);
+        socket.on("offer", (data) => { socket.to(data.roomId).emit("offer", data); });
+        socket.on("answer", (data) => { socket.to(data.roomId).emit("answer", data); });
+        socket.on("iceCandidate", (data) => { socket.to(data.roomId).emit("iceCandidate", data); });
+
+        // ============================================
+        // ✅ GROUP CALL HANDLERS (FIXED WITH CALLBACKS)
+        // ============================================
+        
+        socket.on("joinGroupCall", (data, callback) => {
+            const cb = safeCallback(callback);
+            const groupCallRoomId = `group-call-${data.roomId}`;
+            socket.join(groupCallRoomId);
+            
+            const caller = allUsers.find(u => u.socketId === socket.id);
+            const callerName = data.userName || caller?.name || 'Anonymous';
+            
+            updateUser(socket.id, { name: callerName });
+            
+            if (!groupCallRooms.has(groupCallRoomId)) {
+                groupCallRooms.set(groupCallRoomId, { 
+                    chatRoomId: data.roomId, 
+                    createdAt: Date.now(),
+                    participants: new Map()
+                });
+            }
+            
+            groupCallRooms.get(groupCallRoomId).participants.set(socket.id, callerName);
+            
+            socket.to(data.roomId).emit('groupCallRinging', { 
+                roomId: data.roomId,
+                callerName: callerName,
+            });
+            
+            const participants = getGroupCallParticipants(groupCallRoomId);
+            
+            io.to(groupCallRoomId).emit('groupCallParticipants', { participants });
+            
+            const count = io.sockets.adapter.rooms.get(groupCallRoomId)?.size || 0;
+            
+            io.to(data.roomId).emit('groupCallStatus', { roomId: data.roomId, count });
+            io.to(groupCallRoomId).emit('groupCallStatus', { roomId: data.roomId, count });
+            
+            console.log(`🎙️ ${callerName} joined group call: ${groupCallRoomId} | Count: ${count}`);
+            broadcastAdminUpdate();
+            
+            cb({ success: true, participants, count });
         });
 
-        socket.on("answer", (data) => {
-            socket.to(data.roomId).emit("answer", data);
+        socket.on("leaveGroupCall", (data, callback) => {
+            const cb = safeCallback(callback);
+            const groupCallRoomId = `group-call-${data.roomId}`;
+            socket.leave(groupCallRoomId);
+            
+            const room = groupCallRooms.get(groupCallRoomId);
+            if (room) {
+                room.participants.delete(socket.id);
+            }
+            
+            const participants = getGroupCallParticipants(groupCallRoomId);
+            const count = io.sockets.adapter.rooms.get(groupCallRoomId)?.size || 0;
+            
+            io.to(groupCallRoomId).emit('groupCallParticipants', { participants });
+            io.to(groupCallRoomId).emit('groupCallStatus', { roomId: data.roomId, count });
+            io.to(data.roomId).emit('groupCallStatus', { roomId: data.roomId, count });
+            
+            if (count === 0) {
+                setTimeout(() => {
+                    const finalCount = io.sockets.adapter.rooms.get(groupCallRoomId)?.size || 0;
+                    if (finalCount === 0) {
+                        groupCallRooms.delete(groupCallRoomId);
+                        console.log(`🗑️ Group call room cleaned: ${groupCallRoomId}`);
+                    }
+                }, 2000);
+            }
+            
+            console.log(`👋 ${socket.id} left group call: ${groupCallRoomId} | Count: ${count}`);
+            broadcastAdminUpdate();
+            
+            cb({ success: true, count });
         });
 
-        socket.on("iceCandidate", (data) => {
-            socket.to(data.roomId).emit("iceCandidate", data);
+        socket.on("endGroupCall", (data, callback) => {
+            const cb = safeCallback(callback);
+            const groupCallRoomId = `group-call-${data.roomId}`;
+            
+            io.to(groupCallRoomId).emit('groupCallEnded');
+            io.to(data.roomId).emit('groupCallStatus', { roomId: data.roomId, count: 0 });
+            
+            groupCallRooms.delete(groupCallRoomId);
+            
+            console.log(`🔴 Group call ended: ${groupCallRoomId}`);
+            broadcastAdminUpdate();
+            
+            cb({ success: true });
+        });
+
+        socket.on("getGroupCallStatus", (data, callback) => {
+            const cb = safeCallback(callback);
+            const groupCallRoomId = `group-call-${data.roomId}`;
+            const room = io.sockets.adapter.rooms.get(groupCallRoomId);
+            const count = room ? room.size : 0;
+            
+            console.log(`📞 [STATUS REQUEST] Room: ${groupCallRoomId}, Count: ${count}`);
+            
+            const statusData = { 
+                roomId: data.roomId, 
+                count: count,
+                timestamp: Date.now()
+            };
+            
+            socket.emit('groupCallStatus', statusData);
+            cb(statusData);
         });
     }
     
@@ -312,112 +401,68 @@ io.on("connection", (socket) => {
     if (isAdmin) {
         console.log("🔑 Admin connected:", socket.id);
         socket.emit('adminUpdate', buildAdminData());
-        socket.on('adminGetData', () => socket.emit('adminUpdate', buildAdminData()));
-        socket.on('adminClearStale', () => {
-            allUsers = allUsers.filter(u => (u.status === 'connected' && u.roomId) || u.status === 'waiting');
-            broadcastAdminUpdate();
+        socket.on('adminGetData', (callback) => {
+            const cb = safeCallback(callback);
+            socket.emit('adminUpdate', buildAdminData());
+            cb({ success: true });
+        });
+        socket.on('adminClearStale', () => { 
+            allUsers = allUsers.filter(u => (u.status === 'connected' && u.roomId) || u.status === 'waiting'); 
+            broadcastAdminUpdate(); 
         });
         socket.on('adminReset', () => {
             allUsers = []; waitingUsers = []; activeRooms.clear(); matchedUsers.clear();
             uniqueVisitors.clear(); totalMatches = 0; currentAnnouncement = null; groups = [];
-            callRooms.clear();
-            callQueue = [];
-            suspiciousUsers.clear();
+            callRooms.clear(); callQueue = []; groupCallRooms.clear(); suspiciousUsers.clear();
             if (expireTimeout) clearTimeout(expireTimeout); expireTimeout = null;
             broadcastAdminUpdate();
         });
-        
-        // ✅ FIXED: Admin Announcement Handler
         socket.on('adminAnnouncement', (data) => {
-            console.log('📢 Admin announcement received:', data);
-            console.log('📢 Connected clients:', io.engine.clientsCount);
-            
             if (expireTimeout) { clearTimeout(expireTimeout); expireTimeout = null; }
-            
             const duration = data.duration || 5;
             const expiresAt = duration > 0 ? new Date(Date.now() + duration * 60 * 1000).toISOString() : null;
-            currentAnnouncement = { 
-                text: data.text, 
-                time: new Date().toISOString(), 
-                duration, 
-                expiresAt 
-            };
-            
-            // ✅ Broadcast to ALL connected clients
+            currentAnnouncement = { text: data.text, time: new Date().toISOString(), duration, expiresAt };
             io.emit('announcement', currentAnnouncement);
-            console.log('✅ Announcement broadcast complete');
-            
             if (duration > 0) {
-                expireTimeout = setTimeout(() => {
-                    currentAnnouncement = null; 
-                    expireTimeout = null;
-                    io.emit('clearAnnouncement');
-                    console.log('🕐 Announcement auto-cleared');
-                    broadcastAdminUpdate();
-                }, duration * 60 * 1000);
+                expireTimeout = setTimeout(() => { currentAnnouncement = null; expireTimeout = null; io.emit('clearAnnouncement'); broadcastAdminUpdate(); }, duration * 60 * 1000);
             }
-            
             broadcastAdminUpdate();
         });
-        
-        socket.on('adminClearAnnouncement', () => {
-            console.log('🗑️ Admin clearing announcement');
-            if (expireTimeout) { clearTimeout(expireTimeout); expireTimeout = null; }
-            currentAnnouncement = null;
-            io.emit('clearAnnouncement');
-            broadcastAdminUpdate();
+        socket.on('adminClearAnnouncement', () => { 
+            if (expireTimeout) { clearTimeout(expireTimeout); expireTimeout = null; } 
+            currentAnnouncement = null; 
+            io.emit('clearAnnouncement'); 
+            broadcastAdminUpdate(); 
         });
-        
         socket.on('adminBanUser', (data) => {
             const targetId = data.clientId;
             if (targetId) {
                 bannedUsers.add(targetId);
-                
                 const targetUser = allUsers.find(u => u.clientId === targetId);
                 const targetSocket = targetUser ? io.sockets.sockets.get(targetUser.socketId) : null;
-                
                 if (targetSocket) {
-                    const ip = targetSocket.handshake.headers['x-forwarded-for'] || 
-                               targetSocket.handshake.address || '';
-                    if (ip && ip !== 'unknown') {
-                        bannedIPs.add(ip);
-                        console.log(`🚫 IP banned: ${ip}`);
-                    }
+                    const ip = targetSocket.handshake.headers['x-forwarded-for'] || targetSocket.handshake.address || '';
+                    if (ip && ip !== 'unknown') { bannedIPs.add(ip); console.log(`🚫 IP banned: ${ip}`); }
                     targetSocket.emit('banned', 'You have been permanently banned from CallChat.');
                     targetSocket.disconnect(true);
                 }
-                
                 waitingUsers = waitingUsers.filter(u => u.clientId !== targetId);
                 callQueue = callQueue.filter(u => u.socketId !== targetUser?.socketId);
                 if (targetUser) {
                     matchedUsers.delete(targetUser.socketId);
                     leaveGroup(targetUser.socketId);
-                    callRooms.forEach((room, roomId) => {
-                        if (room.participants.includes(targetUser.socketId)) {
-                            callRooms.delete(roomId);
-                        }
-                    });
+                    callRooms.forEach((room, roomId) => { if (room.participants.includes(targetUser.socketId)) callRooms.delete(roomId); });
                 }
                 allUsers = allUsers.filter(u => u.clientId !== targetId);
-                
-                console.log(`🚫 User banned: ${targetId}`);
                 broadcastAdminUpdate();
             }
         });
-        
-        socket.on('adminUnbanUser', (data) => {
-            bannedUsers.delete(data.clientId);
-            console.log(`✅ User unbanned: ${data.clientId}`);
-            broadcastAdminUpdate();
+        socket.on('adminUnbanUser', (data) => { bannedUsers.delete(data.clientId); broadcastAdminUpdate(); });
+        socket.on('adminGetBanned', (callback) => { 
+            const cb = safeCallback(callback);
+            socket.emit('adminBannedList', { banned: [...bannedUsers], bannedIPs: [...bannedIPs] });
+            cb({ success: true });
         });
-        
-        socket.on('adminGetBanned', () => {
-            socket.emit('adminBannedList', {
-                banned: [...bannedUsers],
-                bannedIPs: [...bannedIPs]
-            });
-        });
-        
         socket.on('disconnect', () => console.log("🔑 Admin disconnected:", socket.id));
         return;
     }
@@ -430,7 +475,7 @@ io.on("connection", (socket) => {
     const storedBanned = socket.handshake.query.banned === 'true';
     
     if (bannedUsers.has(clientId) || bannedIPs.has(clientIP) || storedBanned) {
-        console.log(`🚫 Banned user rejected: ${clientId} (IP: ${clientIP})`);
+        console.log(`🚫 Banned user rejected: ${clientId}`);
         socket.emit('banned', 'You have been permanently banned from CallChat.');
         socket.disconnect(true);
         return;
@@ -438,20 +483,10 @@ io.on("connection", (socket) => {
     
     waitingUsers = waitingUsers.filter(u => u.socketId !== socket.id);
     const existing = allUsers.find(u => u.clientId === clientId);
-    
-    if (existing) {
-        existing.socketId = socket.id; existing.status = 'connected'; existing.lastActive = new Date().toISOString();
-    } else {
+    if (existing) { existing.socketId = socket.id; existing.status = 'connected'; existing.lastActive = new Date().toISOString(); }
+    else {
         uniqueVisitors.add(clientId);
-        allUsers.push({ 
-            socketId: socket.id, clientId,
-            name: 'Anonymous', location: 'Unknown',
-            status: 'connected',
-            joinedAt: new Date().toISOString(),
-            lastActive: new Date().toISOString(),
-            roomId: null,
-            userAgent: socket.handshake.headers['user-agent'] || ''
-        });
+        allUsers.push({ socketId: socket.id, clientId, name: 'Anonymous', location: 'Unknown', status: 'connected', joinedAt: new Date().toISOString(), lastActive: new Date().toISOString(), roomId: null, userAgent: socket.handshake.headers['user-agent'] || '' });
     }
     broadcastAdminUpdate();
 
@@ -464,32 +499,22 @@ io.on("connection", (socket) => {
         waitingUsers = waitingUsers.filter(u => u.socketId !== socket.id);
         waitingUsers.push({ socketId: socket.id, name: user.name, location: user.location });
         broadcastAdminUpdate();
-
         if (waitingUsers.length >= 2) {
             const u1 = waitingUsers.shift(), u2 = waitingUsers.shift();
             if (u1.socketId === u2.socketId) { waitingUsers.unshift(u2); return; }
             let conflict = false;
             activeRooms.forEach(r => { if (r.users.find(u => u.socketId === u1.socketId || u.socketId === u2.socketId)) conflict = true; });
             if (conflict) { waitingUsers.unshift(u2); waitingUsers.unshift(u1); return; }
-            
             const roomId = Date.now().toString();
             matchedUsers.add(u1.socketId); matchedUsers.add(u2.socketId);
             activeRooms.set(roomId, { users: [{ socketId: u1.socketId, name: u1.name }, { socketId: u2.socketId, name: u2.name }], createdAt: Date.now() });
             updateUser(u1.socketId, { status: 'connected', roomId }); updateUser(u2.socketId, { status: 'connected', roomId });
-            
             const s1 = io.sockets.sockets.get(u1.socketId), s2 = io.sockets.sockets.get(u2.socketId);
             if (s1 && s2) {
                 s1.join(roomId); s2.join(roomId); totalMatches++;
                 io.to(u1.socketId).emit("matched", { roomId, partner: { name: u2.name, location: u2.location } });
                 io.to(u2.socketId).emit("matched", { roomId, partner: { name: u1.name, location: u1.location } });
-                
-                // ✅ Send current announcement to newly matched users
-                if (currentAnnouncement) { 
-                    console.log('📢 Sending current announcement to new match');
-                    io.to(u1.socketId).emit('announcement', currentAnnouncement); 
-                    io.to(u2.socketId).emit('announcement', currentAnnouncement); 
-                }
-                
+                if (currentAnnouncement) { io.to(u1.socketId).emit('announcement', currentAnnouncement); io.to(u2.socketId).emit('announcement', currentAnnouncement); }
                 broadcastToAdmins('adminMatch', { roomId, user1: u1.name, user2: u2.name, startedAt: new Date().toISOString() });
                 broadcastAdminUpdate();
             }
@@ -497,11 +522,11 @@ io.on("connection", (socket) => {
     });
 
     socket.on("leaveQueue", () => { waitingUsers = waitingUsers.filter(u => u.socketId !== socket.id); updateUser(socket.id, { status: 'disconnected' }); broadcastAdminUpdate(); });
-
-    socket.on('getGroups', () => {
+    socket.on('getGroups', (callback) => { 
+        const cb = safeCallback(callback);
         socket.emit('groupList', { groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length, maxUsers: g.maxUsers })) });
+        cb({ success: true });
     });
-
     socket.on('createGroup', (data) => {
         const groupId = 'group-' + Date.now();
         const group = { id: groupId, name: `${data.user.name}'s Group`, users: [{ socketId: socket.id, name: data.user.name }], maxUsers: 10 };
@@ -514,7 +539,6 @@ io.on("connection", (socket) => {
         io.emit('groupList', { groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length, maxUsers: g.maxUsers })) });
         broadcastAdminUpdate();
     });
-
     socket.on('joinGroup', (data) => {
         const group = groups.find(g => g.id === data.groupId);
         if (group && group.users.length < group.maxUsers) {
@@ -532,75 +556,35 @@ io.on("connection", (socket) => {
             broadcastAdminUpdate();
         }
     });
-
     socket.on('getGroupMembers', (data) => {
         const group = groups.find(g => g.id === data.roomId);
-        if (group) {
-            const memberList = getGroupMemberList(group);
-            socket.emit('groupUserList', { roomId: data.roomId, members: memberList });
-        }
+        if (group) { const memberList = getGroupMemberList(group); socket.emit('groupUserList', { roomId: data.roomId, members: memberList }); }
     });
-
     socket.on("editGroupName", (data) => {
         const group = groups.find(g => g.id === data.roomId);
-        if (group) {
-            group.name = data.name;
-            io.to(data.roomId).emit("groupNameUpdated", { roomId: data.roomId, name: data.name });
-            io.emit('groupList', { groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length, maxUsers: g.maxUsers })) });
-            broadcastAdminUpdate();
-        }
+        if (group) { group.name = data.name; io.to(data.roomId).emit("groupNameUpdated", { roomId: data.roomId, name: data.name }); io.emit('groupList', { groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length, maxUsers: g.maxUsers })) }); broadcastAdminUpdate(); }
     });
-
-    socket.on("joinRoom", (roomId) => { 
-        socket.join(roomId); 
-        updateUser(socket.id, { roomId, lastActive: new Date().toISOString() }); 
-        socket.to(roomId).emit("partnerJoined"); 
-        
-        // ✅ Send current announcement when user joins a room
-        if (currentAnnouncement) {
-            console.log('📢 Sending current announcement to user joining room');
-            socket.emit('announcement', currentAnnouncement);
-        }
-    });
-    
+    socket.on("joinRoom", (roomId) => { socket.join(roomId); updateUser(socket.id, { roomId, lastActive: new Date().toISOString() }); socket.to(roomId).emit("partnerJoined"); if (currentAnnouncement) socket.emit('announcement', currentAnnouncement); });
     socket.on("sendMessage", (data) => {
         if (data.message) data.message = data.message.trim();
-        
-        if (data.message && data.message.length > 1000) {
-            data.message = data.message.slice(0, 1000) + '...';
-        }
-        
+        if (data.message && data.message.length > 1000) data.message = data.message.slice(0, 1000) + '...';
         const spamReason = isSpamming(socket.id, data.message);
-        if (spamReason) {
-            socket.emit('spamWarning', spamReason);
-            return;
-        }
-        
+        if (spamReason) { socket.emit('spamWarning', spamReason); return; }
         io.to(data.roomId).emit("receiveMessage", data);
         updateUser(socket.id, { lastActive: new Date().toISOString() });
     });
-    
     socket.on("typing", (roomId) => { socket.to(roomId).emit("partnerTyping"); });
     socket.on("messageReaction", (data) => { socket.to(data.roomId).emit("messageReaction", data); });
     socket.on("editMessage", (data) => { socket.to(data.roomId).emit("messageEdited", data); });
     socket.on("deleteMessage", (data) => { socket.to(data.roomId).emit("messageDeleted", data); });
-
     socket.on("leaveRoom", (data) => {
         const isGroupRoom = groups.find(g => g.id === data.roomId);
-        if (isGroupRoom) {
-            leaveGroup(socket.id);
-            socket.leave(data.roomId);
-            updateUser(socket.id, { status: 'disconnected', roomId: null });
-        } else {
-            socket.to(data.roomId).emit("partnerLeft", { partnerName: data.partnerName });
-            socket.leave(data.roomId); matchedUsers.delete(socket.id);
-            updateUser(socket.id, { status: 'disconnected', roomId: null });
-            const room = activeRooms.get(data.roomId);
-            if (room) { room.users = room.users.filter(u => u.socketId !== socket.id); if (room.users.length === 0) { activeRooms.delete(data.roomId); broadcastToAdmins('adminChatEnded', { roomId: data.roomId }); } }
-        }
+        if (isGroupRoom) { leaveGroup(socket.id); socket.leave(data.roomId); updateUser(socket.id, { status: 'disconnected', roomId: null }); }
+        else { socket.to(data.roomId).emit("partnerLeft", { partnerName: data.partnerName }); socket.leave(data.roomId); matchedUsers.delete(socket.id); updateUser(socket.id, { status: 'disconnected', roomId: null }); const room = activeRooms.get(data.roomId); if (room) { room.users = room.users.filter(u => u.socketId !== socket.id); if (room.users.length === 0) { activeRooms.delete(data.roomId); broadcastToAdmins('adminChatEnded', { roomId: data.roomId }); } } }
         broadcastAdminUpdate();
     });
 
+    // ✅ DISCONNECT - Auto-cleanup group calls
     socket.on("disconnect", () => {
         waitingUsers = waitingUsers.filter(u => u.socketId !== socket.id); 
         matchedUsers.delete(socket.id);
@@ -609,79 +593,68 @@ io.on("connection", (socket) => {
         leaveGroup(socket.id);
         
         callRooms.forEach((room, roomId) => {
-            if (room.participants.includes(socket.id)) {
-                socket.to(roomId).emit("userLeft");
-                callRooms.delete(roomId);
-                console.log(`🗑️ Call room cleaned: ${roomId}`);
+            if (room.participants.includes(socket.id)) { socket.to(roomId).emit("userLeft"); callRooms.delete(roomId); }
+        });
+        
+        // ✅ Auto-leave group calls on disconnect
+        groupCallRooms.forEach((room, groupCallRoomId) => {
+            if (room.participants.has(socket.id)) {
+                room.participants.delete(socket.id);
+                socket.leave(groupCallRoomId);
+                
+                const participants = getGroupCallParticipants(groupCallRoomId);
+                const count = io.sockets.adapter.rooms.get(groupCallRoomId)?.size || 0;
+                
+                io.to(groupCallRoomId).emit('groupCallParticipants', { participants });
+                io.to(groupCallRoomId).emit('groupCallStatus', { roomId: room.chatRoomId, count });
+                io.to(room.chatRoomId).emit('groupCallStatus', { roomId: room.chatRoomId, count });
+                
+                if (count === 0) { 
+                    setTimeout(() => {
+                        const finalCount = io.sockets.adapter.rooms.get(groupCallRoomId)?.size || 0;
+                        if (finalCount === 0) {
+                            groupCallRooms.delete(groupCallRoomId);
+                        }
+                    }, 2000);
+                }
             }
         });
         
         activeRooms.forEach((room, roomId) => { 
             const u = room.users.find(u => u.socketId === socket.id); 
-            if (u) { 
-                const isGroupRoom = groups.find(g => g.id === roomId);
-                if (!isGroupRoom) {
-                    socket.to(roomId).emit("partnerDisconnected"); 
-                    room.users = room.users.filter(u => u.socketId !== socket.id); 
-                    if (room.users.length === 0) activeRooms.delete(roomId); 
-                }
-            } 
+            if (u) { const isGroupRoom = groups.find(g => g.id === roomId); if (!isGroupRoom) { socket.to(roomId).emit("partnerDisconnected"); room.users = room.users.filter(u => u.socketId !== socket.id); if (room.users.length === 0) activeRooms.delete(roomId); } } 
         });
         broadcastAdminUpdate();
     });
 });
 
-function cleanupCallRoom(roomId, socket) {
-    const room = callRooms.get(roomId);
-    if (room) {
-        callRooms.delete(roomId);
-        socket.leave(roomId);
-    }
-}
-
+function cleanupCallRoom(roomId, socket) { const room = callRooms.get(roomId); if (room) { callRooms.delete(roomId); socket.leave(roomId); } }
 function getAdminSockets() { const a = []; io.sockets.sockets.forEach(s => { if (s.handshake.query.role === 'admin') a.push(s.id); }); return a; }
 function broadcastToAdmins(e, d) { getAdminSockets().forEach(id => io.to(id).emit(e, d)); }
 function updateUser(sid, upd) { const i = allUsers.findIndex(u => u.socketId === sid); if (i !== -1) allUsers[i] = { ...allUsers[i], ...upd }; }
 function getActiveChatsList() { const c = []; activeRooms.forEach((r, rid) => { if (r.users.length >= 2) c.push({ roomId: rid, user1: r.users[0]?.name || '?', user2: r.users[1]?.name || '?', startedAt: new Date(r.createdAt).toISOString() }); }); return c; }
-function buildAdminData() { return { users: allUsers.filter(u => (u.status === 'connected' && u.roomId) || u.status === 'waiting' || (Date.now() - new Date(u.lastActive).getTime()) < 60000), activeChats: getActiveChatsList(), totalVisitors: uniqueVisitors.size, totalMatches, activeNow: allUsers.filter(u => u.status === 'connected' && u.roomId).length, waitingNow: allUsers.filter(u => u.status === 'waiting').length, announcement: currentAnnouncement, groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length })), callRooms: callRooms.size, callQueue: callQueue.length, suspiciousUsers: suspiciousUsers.size, bannedCount: bannedUsers.size }; }
+function buildAdminData() { return { users: allUsers.filter(u => (u.status === 'connected' && u.roomId) || u.status === 'waiting' || (Date.now() - new Date(u.lastActive).getTime()) < 60000), activeChats: getActiveChatsList(), totalVisitors: uniqueVisitors.size, totalMatches, activeNow: allUsers.filter(u => u.status === 'connected' && u.roomId).length, waitingNow: allUsers.filter(u => u.status === 'waiting').length, announcement: currentAnnouncement, groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length })), callRooms: callRooms.size, callQueue: callQueue.length, groupCallRooms: groupCallRooms.size, suspiciousUsers: suspiciousUsers.size, bannedCount: bannedUsers.size }; }
 function broadcastAdminUpdate() { broadcastToAdmins('adminUpdate', buildAdminData()); }
 
 // ============================================
-// ✅ PRODUCTION
+// ✅ PRODUCTION - SPA Fallback
 // ============================================
 if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, 'dist')));
-    app.get('/*', (req, res) => {
-        if (req.path.startsWith('/api') || req.path === '/health' || req.path === '/status') {
-            return res.status(404).json({ error: 'Not found' });
-        }
+    app.get('*', (req, res) => {
+        if (req.path.startsWith('/api') || req.path === '/health' || req.path === '/status') return res.status(404).json({ error: 'Not found' });
+        if (req.path.includes('.')) return res.status(404).send('Not found');
         res.sendFile(path.join(__dirname, 'dist', 'index.html'));
     });
 }
 
-// ============================================
-// ✅ ERROR HANDLERS
-// ============================================
-process.on('uncaughtException', (err) => {
-    console.error('❌ Uncaught Exception:', err.message);
-});
+process.on('uncaughtException', (err) => { console.error('❌ Uncaught Exception:', err.message, err.stack); });
+process.on('unhandledRejection', (reason) => { console.error('❌ Unhandled Rejection:', reason); });
 
-process.on('unhandledRejection', (reason) => {
-    console.error('❌ Unhandled Rejection:', reason);
-});
-
-// ============================================
-// ✅ START SERVER
-// ============================================
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 CallChat Server running on port ${PORT}`);
-    console.log(`👥 Group chat enabled`);
-    console.log(`📞 Voice call enabled (Auto-match queue)`);
-    console.log(`✏️ Message edit/delete enabled`);
-    console.log(`📝 Group name edit enabled`);
-    console.log(`🛡️ Anti-spam protection enabled`);
-    console.log(`🚫 Hard ban system enabled`);
-    console.log(`📢 Announcement system: io.emit() for all clients`);
+    console.log(`👥 Group chat | 📞 Voice call | 🎙️ Group call`);
+    console.log(`📢 Announcements | 🛡️ Anti-spam | 🚫 Ban system`);
     console.log(`🏥 Health check: http://0.0.0.0:${PORT}/health`);
-});
+});asd

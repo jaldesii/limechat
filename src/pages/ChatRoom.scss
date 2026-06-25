@@ -399,6 +399,202 @@ body.has-announcement {
 }
 
 // ============================================
+// GROUP CALL BUTTON
+// ============================================
+.chat-header__call-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: var(--lime-light, #ecfccb);
+  color: var(--lime-dark, #65a30d);
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: $font;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  animation: pulse 2s infinite;
+
+  &:hover {
+    background: var(--lime, #84cc16);
+    color: #09090b;
+  }
+
+  &--live {
+    background: #84cc16;
+    color: #09090b;
+    box-shadow: 0 0 12px rgba(132, 204, 22, 0.4);
+    animation: callPulse 1.5s infinite;
+
+    &:hover {
+      background: #a3e635;
+    }
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(132, 204, 22, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(132, 204, 22, 0); }
+}
+
+@keyframes callPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(132, 204, 22, 0.6); }
+  50% { box-shadow: 0 0 0 8px rgba(132, 204, 22, 0); }
+}
+
+
+// ============================================
+// INCOMING GROUP CALL MODAL
+// ============================================
+.incoming-call-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(8px);
+  animation: fadeIn 0.3s ease;
+}
+
+.incoming-call-modal {
+  background: var(--bg-secondary, #ffffff);
+  border-radius: 20px;
+  padding: 32px 28px;
+  text-align: center;
+  max-width: 340px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  animation: modalPopIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.incoming-call__icon {
+  width: 64px;
+  height: 64px;
+  background: #ecfccb;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  color: #65a30d;
+  animation: callPulse 1.5s infinite;
+}
+
+.incoming-call__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary, #18181b);
+  margin: 0 0 4px;
+}
+
+.incoming-call__subtitle {
+  font-size: 13px;
+  color: var(--text-tertiary, #71717a);
+  margin: 0 0 8px;
+}
+
+.incoming-call__caller {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lime-dark, #65a30d);
+  margin: 0 0 24px;
+}
+
+.incoming-call__wave {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 24px;
+  margin-bottom: 20px;
+  
+  span {
+    width: 3px;
+    background: var(--lime, #84cc16);
+    border-radius: 2px;
+    animation: audioWave 1s ease-in-out infinite;
+    
+    &:nth-child(1) { height: 8px; animation-delay: 0s; }
+    &:nth-child(2) { height: 16px; animation-delay: 0.15s; }
+    &:nth-child(3) { height: 24px; animation-delay: 0.3s; }
+    &:nth-child(4) { height: 16px; animation-delay: 0.45s; }
+    &:nth-child(5) { height: 8px; animation-delay: 0.6s; }
+  }
+}
+
+.incoming-call__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.incoming-call__btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: $font;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+
+  &--join {
+    background: var(--lime, #84cc16);
+    color: #09090b;
+    
+    &:hover {
+      background: var(--lime-hover, #a3e635);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba($lime, 0.4);
+    }
+    
+    &:active {
+      transform: scale(0.97);
+    }
+  }
+
+  &--dismiss {
+    background: transparent;
+    color: var(--text-tertiary, #71717a);
+    border: 1.5px solid var(--border-primary, #e4e4e7);
+    font-weight: 500;
+    font-size: 13px;
+    
+    &:hover {
+      background: var(--bg-tertiary, #f4f4f5);
+      color: var(--text-primary, #18181b);
+      border-color: var(--border-primary, #d4d4d8);
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes audioWave {
+  0%, 100% { transform: scaleY(0.5); }
+  50% { transform: scaleY(1); }
+}
+// ============================================
 // PINNED MESSAGE BANNER
 // ============================================
 .chat-pinned-message {
