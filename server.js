@@ -4,6 +4,7 @@ import cors from "cors";
 import { Server } from "socket.io";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -11,13 +12,38 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(cors());
 
-// ✅ IMPORTANT: Serve static files FIRST before any routes
-// This ensures index.html and assets are served properly
+// ✅ Verify dist folder exists
+const distPath = path.join(__dirname, 'dist');
+const indexPath = path.join(distPath, 'index.html');
+
+console.log('📁 __dirname:', __dirname);
+console.log('📁 dist path:', distPath);
+console.log('📁 index.html path:', indexPath);
+
+if (!fs.existsSync(distPath)) {
+    console.warn('⚠️ WARNING: dist folder does not exist!');
+    console.warn('⚠️ Run: npm run build');
+} else if (!fs.existsSync(indexPath)) {
+    console.warn('⚠️ WARNING: index.html not found in dist!');
+    try {
+        console.warn('⚠️ Files in dist:', fs.readdirSync(distPath));
+    } catch (e) {
+        console.warn('⚠️ Cannot read dist folder');
+    }
+} else {
+    console.log('✅ Frontend build found at:', indexPath);
+}
+
+// ✅ IMPORTANT: Serve static files FIRST
 app.use(express.static(path.join(__dirname, 'dist'), {
-    index: false, // Don't auto-serve index.html for root
+    index: false,
     setHeaders: (res, filePath) => {
-        // Cache static assets
         if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000');
+        }
+        // ✅ Handle WASM files
+        if (filePath.endsWith('.wasm')) {
+            res.setHeader('Content-Type', 'application/wasm');
             res.setHeader('Cache-Control', 'public, max-age=31536000');
         }
     }
@@ -43,7 +69,7 @@ io.engine.on("connection_error", (err) => {
 });
 
 // ============================================
-// ✅ API ENDPOINTS (defined BEFORE catch-all)
+// ✅ API ENDPOINTS
 // ============================================
 app.get('/health', (req, res) => {
   res.status(200).json({ 
@@ -62,6 +88,9 @@ app.get('/api', (req, res) => {
   });
 });
 
+// ============================================
+// DATA STORES
+// ============================================
 let waitingUsers = [];
 const activeRooms = new Map();
 const matchedUsers = new Set();
@@ -82,7 +111,9 @@ const suspiciousUsers = new Set();
 const bannedUsers = new Set();
 const bannedIPs = new Set();
 
-// ✅ Safe callback helper
+// ============================================
+// HELPERS
+// ============================================
 const safeCallback = (callback) => {
     return (typeof callback === 'function') ? callback : () => {};
 };
@@ -90,76 +121,6 @@ const safeCallback = (callback) => {
 function generateRoomCode() {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
-
-setInterval(() => {
-    try {
-        const now = Date.now();
-        
-        for (const key in messageTimestamps) {
-            messageTimestamps[key] = messageTimestamps[key].filter(t => now - t < 10000);
-            if (messageTimestamps[key].length === 0) delete messageTimestamps[key];
-        }
-        for (const key in userMessageHistory) {
-            if (now - userMessageHistory[key].lastActive > 60000) delete userMessageHistory[key];
-        }
-        
-        allUsers = allUsers.filter(user => {
-            if (user.status === 'connected' && user.roomId) return true;
-            if (user.status === 'waiting') return (now - new Date(user.lastActive).getTime()) < 3 * 60 * 1000;
-            if (user.status === 'connected' && !user.roomId) return (now - new Date(user.joinedAt).getTime()) < 15 * 1000;
-            if (user.status === 'disconnected') return (now - new Date(user.lastActive).getTime()) < 30 * 1000;
-            return false;
-        });
-        groups = groups.filter(g => g.users.length > 0);
-        
-        callRooms.forEach((room, roomId) => {
-            if (now - room.createdAt > 30 * 60 * 1000) {
-                callRooms.delete(roomId);
-                console.log(`🗑️ Stale call room deleted: ${roomId}`);
-            }
-        });
-        
-        groupCallRooms.forEach((room, roomId) => {
-            if (now - room.createdAt > 30 * 60 * 1000) {
-                groupCallRooms.delete(roomId);
-                console.log(`🗑️ Stale group call room deleted: ${roomId}`);
-            }
-        });
-        
-        callQueue = callQueue.filter(u => now - u.joinedAt < 5 * 60 * 1000);
-        
-        broadcastAdminUpdate();
-    } catch (err) {
-        console.error('❌ Interval error:', err.message);
-    }
-}, 10000);
-
-app.get("/status", (req, res) => {
-    try {
-        res.json({
-            waitingUsers: waitingUsers.length,
-            activeRooms: activeRooms.size,
-            matchedUsers: matchedUsers.size,
-            totalVisitors: uniqueVisitors.size,
-            totalMatches,
-            allUsersCount: allUsers.length,
-            activeNow: allUsers.filter(u => u.status === 'connected' && u.roomId).length,
-            waitingNow: allUsers.filter(u => u.status === 'waiting').length,
-            announcement: currentAnnouncement,
-            groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length })),
-            callRooms: callRooms.size,
-            callQueue: callQueue.length,
-            groupCallRooms: groupCallRooms.size,
-            suspiciousUsers: suspiciousUsers.size,
-            bannedCount: bannedUsers.size,
-            uptime: process.uptime(),
-            memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
-        });
-    } catch (err) {
-        console.error('❌ Status error:', err.message);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
 
 function leaveGroup(socketId) {
     try {
@@ -219,9 +180,7 @@ function getGroupCallParticipants(groupCallRoomId) {
         const room = io.sockets.adapter.rooms.get(groupCallRoomId);
         const callRoom = groupCallRooms.get(groupCallRoomId);
         
-        if (!room || room.size === 0) {
-            return [];
-        }
+        if (!room || room.size === 0) return [];
         
         room.forEach(socketId => {
             let name = callRoom?.participants?.get(socketId);
@@ -241,10 +200,7 @@ function getGroupCallParticipants(groupCallRoomId) {
             if (!name || name === 'Unknown' || name === 'Anonymous') {
                 for (const group of groups) {
                     const member = group.users.find(u => u.socketId === socketId);
-                    if (member) {
-                        name = member.name;
-                        break;
-                    }
+                    if (member) { name = member.name; break; }
                 }
             }
             
@@ -252,11 +208,7 @@ function getGroupCallParticipants(groupCallRoomId) {
                 name = 'Participant';
             }
             
-            participants.push({ 
-                socketId: socketId, 
-                name: name,
-                isActive: true 
-            });
+            participants.push({ socketId: socketId, name: name, isActive: true });
         });
         
         return participants;
@@ -288,6 +240,144 @@ function tryMatchCallQueue() {
     }
 }
 
+function cleanupCallRoom(roomId, socket) { 
+    try {
+        const room = callRooms.get(roomId); 
+        if (room) { callRooms.delete(roomId); socket.leave(roomId); } 
+    } catch (err) { console.error('❌ cleanupCallRoom error:', err.message); }
+}
+
+function getAdminSockets() { 
+    const a = []; 
+    io.sockets.sockets.forEach(s => { if (s.handshake.query.role === 'admin') a.push(s.id); }); 
+    return a; 
+}
+
+function broadcastToAdmins(e, d) { 
+    try {
+        getAdminSockets().forEach(id => io.to(id).emit(e, d)); 
+    } catch (err) { console.error('❌ broadcastToAdmins error:', err.message); }
+}
+
+function updateUser(sid, upd) { 
+    try {
+        const i = allUsers.findIndex(u => u.socketId === sid); 
+        if (i !== -1) allUsers[i] = { ...allUsers[i], ...upd }; 
+    } catch (err) { console.error('❌ updateUser error:', err.message); }
+}
+
+function getActiveChatsList() { 
+    const c = []; 
+    activeRooms.forEach((r, rid) => { if (r.users.length >= 2) c.push({ roomId: rid, user1: r.users[0]?.name || '?', user2: r.users[1]?.name || '?', startedAt: new Date(r.createdAt).toISOString() }); }); 
+    return c; 
+}
+
+function buildAdminData() { 
+    try {
+        return { 
+            users: allUsers.filter(u => (u.status === 'connected' && u.roomId) || u.status === 'waiting' || (Date.now() - new Date(u.lastActive).getTime()) < 60000), 
+            activeChats: getActiveChatsList(), 
+            totalVisitors: uniqueVisitors.size, 
+            totalMatches, 
+            activeNow: allUsers.filter(u => u.status === 'connected' && u.roomId).length, 
+            waitingNow: allUsers.filter(u => u.status === 'waiting').length, 
+            announcement: currentAnnouncement, 
+            groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length })), 
+            callRooms: callRooms.size, 
+            callQueue: callQueue.length, 
+            groupCallRooms: groupCallRooms.size, 
+            suspiciousUsers: suspiciousUsers.size, 
+            bannedCount: bannedUsers.size 
+        }; 
+    } catch (err) {
+        console.error('❌ buildAdminData error:', err.message);
+        return {};
+    }
+}
+
+function broadcastAdminUpdate() { 
+    broadcastToAdmins('adminUpdate', buildAdminData()); 
+}
+
+// ============================================
+// CLEANUP INTERVAL
+// ============================================
+setInterval(() => {
+    try {
+        const now = Date.now();
+        
+        for (const key in messageTimestamps) {
+            messageTimestamps[key] = messageTimestamps[key].filter(t => now - t < 10000);
+            if (messageTimestamps[key].length === 0) delete messageTimestamps[key];
+        }
+        for (const key in userMessageHistory) {
+            if (now - userMessageHistory[key].lastActive > 60000) delete userMessageHistory[key];
+        }
+        
+        allUsers = allUsers.filter(user => {
+            if (user.status === 'connected' && user.roomId) return true;
+            if (user.status === 'waiting') return (now - new Date(user.lastActive).getTime()) < 3 * 60 * 1000;
+            if (user.status === 'connected' && !user.roomId) return (now - new Date(user.joinedAt).getTime()) < 15 * 1000;
+            if (user.status === 'disconnected') return (now - new Date(user.lastActive).getTime()) < 30 * 1000;
+            return false;
+        });
+        groups = groups.filter(g => g.users.length > 0);
+        
+        callRooms.forEach((room, roomId) => {
+            if (now - room.createdAt > 30 * 60 * 1000) {
+                callRooms.delete(roomId);
+                console.log(`🗑️ Stale call room deleted: ${roomId}`);
+            }
+        });
+        
+        groupCallRooms.forEach((room, roomId) => {
+            if (now - room.createdAt > 30 * 60 * 1000) {
+                groupCallRooms.delete(roomId);
+                console.log(`🗑️ Stale group call room deleted: ${roomId}`);
+            }
+        });
+        
+        callQueue = callQueue.filter(u => now - u.joinedAt < 5 * 60 * 1000);
+        
+        broadcastAdminUpdate();
+    } catch (err) {
+        console.error('❌ Interval error:', err.message);
+    }
+}, 10000);
+
+// ============================================
+// STATUS ENDPOINT
+// ============================================
+app.get("/status", (req, res) => {
+    try {
+        res.json({
+            waitingUsers: waitingUsers.length,
+            activeRooms: activeRooms.size,
+            matchedUsers: matchedUsers.size,
+            totalVisitors: uniqueVisitors.size,
+            totalMatches,
+            allUsersCount: allUsers.length,
+            activeNow: allUsers.filter(u => u.status === 'connected' && u.roomId).length,
+            waitingNow: allUsers.filter(u => u.status === 'waiting').length,
+            announcement: currentAnnouncement,
+            groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length })),
+            callRooms: callRooms.size,
+            callQueue: callQueue.length,
+            groupCallRooms: groupCallRooms.size,
+            suspiciousUsers: suspiciousUsers.size,
+            bannedCount: bannedUsers.size,
+            uptime: process.uptime(),
+            memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
+        });
+    } catch (err) {
+        console.error('❌ Status error:', err.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// ============================================
+// SOCKET.IO CONNECTION HANDLER
+// ============================================
 io.on("connection", (socket) => {
     console.log(`🔌 New connection: ${socket.id}`);
     
@@ -298,6 +388,9 @@ io.on("connection", (socket) => {
         console.error(`❌ Socket ${socket.id} error:`, err.message);
     });
     
+    // ============================================
+    // VOICE CALL HANDLERS (Non-admin)
+    // ============================================
     if (!isAdmin) {
         socket.on("joinCallQueue", (user) => {
             try {
@@ -367,6 +460,7 @@ io.on("connection", (socket) => {
             }
         });
 
+        // WebRTC Signaling
         socket.on("offer", (data) => { 
             try { socket.to(data.roomId).emit("offer", data); } catch (err) { console.error('❌ offer error:', err.message); }
         });
@@ -378,9 +472,8 @@ io.on("connection", (socket) => {
         });
 
         // ============================================
-        // ✅ GROUP CALL HANDLERS
+        // GROUP CALL HANDLERS
         // ============================================
-        
         socket.on("joinGroupCall", (data, callback) => {
             try {
                 const cb = safeCallback(callback);
@@ -408,7 +501,6 @@ io.on("connection", (socket) => {
                 });
                 
                 const participants = getGroupCallParticipants(groupCallRoomId);
-                
                 io.to(groupCallRoomId).emit('groupCallParticipants', { participants });
                 
                 const count = io.sockets.adapter.rooms.get(groupCallRoomId)?.size || 0;
@@ -488,12 +580,7 @@ io.on("connection", (socket) => {
                 const room = io.sockets.adapter.rooms.get(groupCallRoomId);
                 const count = room ? room.size : 0;
                 
-                const statusData = { 
-                    roomId: data.roomId, 
-                    count: count,
-                    timestamp: Date.now()
-                };
-                
+                const statusData = { roomId: data.roomId, count: count, timestamp: Date.now() };
                 socket.emit('groupCallStatus', statusData);
                 cb(statusData);
             } catch (err) {
@@ -503,11 +590,12 @@ io.on("connection", (socket) => {
     }
     
     // ============================================
-    // ADMIN
+    // ADMIN HANDLERS
     // ============================================
     if (isAdmin) {
         console.log("🔑 Admin connected:", socket.id);
         socket.emit('adminUpdate', buildAdminData());
+        
         socket.on('adminGetData', (callback) => {
             try {
                 const cb = safeCallback(callback);
@@ -515,12 +603,14 @@ io.on("connection", (socket) => {
                 cb({ success: true });
             } catch (err) { console.error('❌ adminGetData error:', err.message); }
         });
+        
         socket.on('adminClearStale', () => { 
             try {
                 allUsers = allUsers.filter(u => (u.status === 'connected' && u.roomId) || u.status === 'waiting'); 
                 broadcastAdminUpdate(); 
             } catch (err) { console.error('❌ adminClearStale error:', err.message); }
         });
+        
         socket.on('adminReset', () => {
             try {
                 allUsers = []; waitingUsers = []; activeRooms.clear(); matchedUsers.clear();
@@ -530,27 +620,37 @@ io.on("connection", (socket) => {
                 broadcastAdminUpdate();
             } catch (err) { console.error('❌ adminReset error:', err.message); }
         });
+        
         socket.on('adminAnnouncement', (data) => {
             try {
                 if (expireTimeout) { clearTimeout(expireTimeout); expireTimeout = null; }
                 const duration = data.duration || 5;
                 const expiresAt = duration > 0 ? new Date(Date.now() + duration * 60 * 1000).toISOString() : null;
                 currentAnnouncement = { text: data.text, time: new Date().toISOString(), duration, expiresAt };
+                // ✅ FIXED: Use io.emit to broadcast to ALL clients including chat rooms
                 io.emit('announcement', currentAnnouncement);
                 if (duration > 0) {
-                    expireTimeout = setTimeout(() => { currentAnnouncement = null; expireTimeout = null; io.emit('clearAnnouncement'); broadcastAdminUpdate(); }, duration * 60 * 1000);
+                    expireTimeout = setTimeout(() => { 
+                        currentAnnouncement = null; 
+                        expireTimeout = null; 
+                        io.emit('clearAnnouncement'); 
+                        broadcastAdminUpdate(); 
+                    }, duration * 60 * 1000);
                 }
                 broadcastAdminUpdate();
             } catch (err) { console.error('❌ adminAnnouncement error:', err.message); }
         });
+        
         socket.on('adminClearAnnouncement', () => { 
             try {
                 if (expireTimeout) { clearTimeout(expireTimeout); expireTimeout = null; } 
                 currentAnnouncement = null; 
+                // ✅ FIXED: Use io.emit
                 io.emit('clearAnnouncement'); 
                 broadcastAdminUpdate(); 
             } catch (err) { console.error('❌ adminClearAnnouncement error:', err.message); }
         });
+        
         socket.on('adminBanUser', (data) => {
             try {
                 const targetId = data.clientId;
@@ -576,9 +676,11 @@ io.on("connection", (socket) => {
                 }
             } catch (err) { console.error('❌ adminBanUser error:', err.message); }
         });
+        
         socket.on('adminUnbanUser', (data) => { 
             try { bannedUsers.delete(data.clientId); broadcastAdminUpdate(); } catch (err) { console.error('❌ adminUnbanUser error:', err.message); }
         });
+        
         socket.on('adminGetBanned', (callback) => { 
             try {
                 const cb = safeCallback(callback);
@@ -586,12 +688,13 @@ io.on("connection", (socket) => {
                 cb({ success: true });
             } catch (err) { console.error('❌ adminGetBanned error:', err.message); }
         });
+        
         socket.on('disconnect', () => console.log("🔑 Admin disconnected:", socket.id));
         return;
     }
     
     // ============================================
-    // NORMAL USER
+    // NORMAL USER HANDLERS
     // ============================================
     try {
         const clientId = socket.handshake.query.clientId || socket.id;
@@ -607,13 +710,22 @@ io.on("connection", (socket) => {
         
         waitingUsers = waitingUsers.filter(u => u.socketId !== socket.id);
         const existing = allUsers.find(u => u.clientId === clientId);
-        if (existing) { existing.socketId = socket.id; existing.status = 'connected'; existing.lastActive = new Date().toISOString(); }
-        else {
+        if (existing) { 
+            existing.socketId = socket.id; 
+            existing.status = 'connected'; 
+            existing.lastActive = new Date().toISOString(); 
+        } else {
             uniqueVisitors.add(clientId);
-            allUsers.push({ socketId: socket.id, clientId, name: 'Anonymous', location: 'Unknown', status: 'connected', joinedAt: new Date().toISOString(), lastActive: new Date().toISOString(), roomId: null, userAgent: socket.handshake.headers['user-agent'] || '' });
+            allUsers.push({ 
+                socketId: socket.id, clientId, name: 'Anonymous', location: 'Unknown', 
+                status: 'connected', joinedAt: new Date().toISOString(), 
+                lastActive: new Date().toISOString(), roomId: null, 
+                userAgent: socket.handshake.headers['user-agent'] || '' 
+            });
         }
         broadcastAdminUpdate();
 
+        // Chat queue
         socket.on("joinQueue", (user) => {
             try {
                 updateUser(socket.id, { name: user.name, location: user.location, status: 'waiting', lastActive: new Date().toISOString() });
@@ -624,22 +736,29 @@ io.on("connection", (socket) => {
                 waitingUsers = waitingUsers.filter(u => u.socketId !== socket.id);
                 waitingUsers.push({ socketId: socket.id, name: user.name, location: user.location });
                 broadcastAdminUpdate();
+                
                 if (waitingUsers.length >= 2) {
                     const u1 = waitingUsers.shift(), u2 = waitingUsers.shift();
                     if (u1.socketId === u2.socketId) { waitingUsers.unshift(u2); return; }
                     let conflict = false;
                     activeRooms.forEach(r => { if (r.users.find(u => u.socketId === u1.socketId || u.socketId === u2.socketId)) conflict = true; });
                     if (conflict) { waitingUsers.unshift(u2); waitingUsers.unshift(u1); return; }
+                    
                     const roomId = Date.now().toString();
                     matchedUsers.add(u1.socketId); matchedUsers.add(u2.socketId);
                     activeRooms.set(roomId, { users: [{ socketId: u1.socketId, name: u1.name }, { socketId: u2.socketId, name: u2.name }], createdAt: Date.now() });
-                    updateUser(u1.socketId, { status: 'connected', roomId }); updateUser(u2.socketId, { status: 'connected', roomId });
+                    updateUser(u1.socketId, { status: 'connected', roomId }); 
+                    updateUser(u2.socketId, { status: 'connected', roomId });
+                    
                     const s1 = io.sockets.sockets.get(u1.socketId), s2 = io.sockets.sockets.get(u2.socketId);
                     if (s1 && s2) {
                         s1.join(roomId); s2.join(roomId); totalMatches++;
                         io.to(u1.socketId).emit("matched", { roomId, partner: { name: u2.name, location: u2.location } });
                         io.to(u2.socketId).emit("matched", { roomId, partner: { name: u1.name, location: u1.location } });
-                        if (currentAnnouncement) { io.to(u1.socketId).emit('announcement', currentAnnouncement); io.to(u2.socketId).emit('announcement', currentAnnouncement); }
+                        if (currentAnnouncement) { 
+                            io.to(u1.socketId).emit('announcement', currentAnnouncement); 
+                            io.to(u2.socketId).emit('announcement', currentAnnouncement); 
+                        }
                         broadcastToAdmins('adminMatch', { roomId, user1: u1.name, user2: u2.name, startedAt: new Date().toISOString() });
                         broadcastAdminUpdate();
                     }
@@ -647,7 +766,12 @@ io.on("connection", (socket) => {
             } catch (err) { console.error('❌ joinQueue error:', err.message); }
         });
 
-        socket.on("leaveQueue", () => { try { waitingUsers = waitingUsers.filter(u => u.socketId !== socket.id); updateUser(socket.id, { status: 'disconnected' }); broadcastAdminUpdate(); } catch (err) { console.error('❌ leaveQueue error:', err.message); } });
+        socket.on("leaveQueue", () => { 
+            try { waitingUsers = waitingUsers.filter(u => u.socketId !== socket.id); updateUser(socket.id, { status: 'disconnected' }); broadcastAdminUpdate(); } 
+            catch (err) { console.error('❌ leaveQueue error:', err.message); } 
+        });
+
+        // Groups
         socket.on('getGroups', (callback) => { 
             try {
                 const cb = safeCallback(callback);
@@ -655,6 +779,7 @@ io.on("connection", (socket) => {
                 cb({ success: true });
             } catch (err) { console.error('❌ getGroups error:', err.message); }
         });
+
         socket.on('createGroup', (data) => {
             try {
                 const groupId = 'group-' + Date.now();
@@ -669,6 +794,7 @@ io.on("connection", (socket) => {
                 broadcastAdminUpdate();
             } catch (err) { console.error('❌ createGroup error:', err.message); }
         });
+
         socket.on('joinGroup', (data) => {
             try {
                 const group = groups.find(g => g.id === data.groupId);
@@ -688,19 +814,39 @@ io.on("connection", (socket) => {
                 }
             } catch (err) { console.error('❌ joinGroup error:', err.message); }
         });
+
         socket.on('getGroupMembers', (data) => {
             try {
                 const group = groups.find(g => g.id === data.roomId);
-                if (group) { const memberList = getGroupMemberList(group); socket.emit('groupUserList', { roomId: data.roomId, members: memberList }); }
+                if (group) { 
+                    const memberList = getGroupMemberList(group); 
+                    socket.emit('groupUserList', { roomId: data.roomId, members: memberList }); 
+                }
             } catch (err) { console.error('❌ getGroupMembers error:', err.message); }
         });
+
         socket.on("editGroupName", (data) => {
             try {
                 const group = groups.find(g => g.id === data.roomId);
-                if (group) { group.name = data.name; io.to(data.roomId).emit("groupNameUpdated", { roomId: data.roomId, name: data.name }); io.emit('groupList', { groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length, maxUsers: g.maxUsers })) }); broadcastAdminUpdate(); }
+                if (group) { 
+                    group.name = data.name; 
+                    io.to(data.roomId).emit("groupNameUpdated", { roomId: data.roomId, name: data.name }); 
+                    io.emit('groupList', { groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length, maxUsers: g.maxUsers })) }); 
+                    broadcastAdminUpdate(); 
+                }
             } catch (err) { console.error('❌ editGroupName error:', err.message); }
         });
-        socket.on("joinRoom", (roomId) => { try { socket.join(roomId); updateUser(socket.id, { roomId, lastActive: new Date().toISOString() }); socket.to(roomId).emit("partnerJoined"); if (currentAnnouncement) socket.emit('announcement', currentAnnouncement); } catch (err) { console.error('❌ joinRoom error:', err.message); } });
+
+        // Chat room
+        socket.on("joinRoom", (roomId) => { 
+            try { 
+                socket.join(roomId); 
+                updateUser(socket.id, { roomId, lastActive: new Date().toISOString() }); 
+                socket.to(roomId).emit("partnerJoined"); 
+                if (currentAnnouncement) socket.emit('announcement', currentAnnouncement); 
+            } catch (err) { console.error('❌ joinRoom error:', err.message); } 
+        });
+
         socket.on("sendMessage", (data) => {
             try {
                 if (data.message) data.message = data.message.trim();
@@ -711,20 +857,38 @@ io.on("connection", (socket) => {
                 updateUser(socket.id, { lastActive: new Date().toISOString() });
             } catch (err) { console.error('❌ sendMessage error:', err.message); }
         });
+
         socket.on("typing", (roomId) => { try { socket.to(roomId).emit("partnerTyping"); } catch (err) { console.error('❌ typing error:', err.message); } });
         socket.on("messageReaction", (data) => { try { socket.to(data.roomId).emit("messageReaction", data); } catch (err) { console.error('❌ messageReaction error:', err.message); } });
         socket.on("editMessage", (data) => { try { socket.to(data.roomId).emit("messageEdited", data); } catch (err) { console.error('❌ editMessage error:', err.message); } });
         socket.on("deleteMessage", (data) => { try { socket.to(data.roomId).emit("messageDeleted", data); } catch (err) { console.error('❌ deleteMessage error:', err.message); } });
+
         socket.on("leaveRoom", (data) => {
             try {
                 const isGroupRoom = groups.find(g => g.id === data.roomId);
-                if (isGroupRoom) { leaveGroup(socket.id); socket.leave(data.roomId); updateUser(socket.id, { status: 'disconnected', roomId: null }); }
-                else { socket.to(data.roomId).emit("partnerLeft", { partnerName: data.partnerName }); socket.leave(data.roomId); matchedUsers.delete(socket.id); updateUser(socket.id, { status: 'disconnected', roomId: null }); const room = activeRooms.get(data.roomId); if (room) { room.users = room.users.filter(u => u.socketId !== socket.id); if (room.users.length === 0) { activeRooms.delete(data.roomId); broadcastToAdmins('adminChatEnded', { roomId: data.roomId }); } } }
+                if (isGroupRoom) { 
+                    leaveGroup(socket.id); 
+                    socket.leave(data.roomId); 
+                    updateUser(socket.id, { status: 'disconnected', roomId: null }); 
+                } else { 
+                    socket.to(data.roomId).emit("partnerLeft", { partnerName: data.partnerName }); 
+                    socket.leave(data.roomId); 
+                    matchedUsers.delete(socket.id); 
+                    updateUser(socket.id, { status: 'disconnected', roomId: null }); 
+                    const room = activeRooms.get(data.roomId); 
+                    if (room) { 
+                        room.users = room.users.filter(u => u.socketId !== socket.id); 
+                        if (room.users.length === 0) { 
+                            activeRooms.delete(data.roomId); 
+                            broadcastToAdmins('adminChatEnded', { roomId: data.roomId }); 
+                        } 
+                    } 
+                }
                 broadcastAdminUpdate();
             } catch (err) { console.error('❌ leaveRoom error:', err.message); }
         });
 
-        // ✅ DISCONNECT - Auto-cleanup group calls
+        // ✅ DISCONNECT
         socket.on("disconnect", () => {
             try {
                 waitingUsers = waitingUsers.filter(u => u.socketId !== socket.id); 
@@ -734,7 +898,10 @@ io.on("connection", (socket) => {
                 leaveGroup(socket.id);
                 
                 callRooms.forEach((room, roomId) => {
-                    if (room.participants.includes(socket.id)) { socket.to(roomId).emit("userLeft"); callRooms.delete(roomId); }
+                    if (room.participants.includes(socket.id)) { 
+                        socket.to(roomId).emit("userLeft"); 
+                        callRooms.delete(roomId); 
+                    }
                 });
                 
                 groupCallRooms.forEach((room, groupCallRoomId) => {
@@ -752,9 +919,7 @@ io.on("connection", (socket) => {
                         if (count === 0) { 
                             setTimeout(() => {
                                 const finalCount = io.sockets.adapter.rooms.get(groupCallRoomId)?.size || 0;
-                                if (finalCount === 0) {
-                                    groupCallRooms.delete(groupCallRoomId);
-                                }
+                                if (finalCount === 0) groupCallRooms.delete(groupCallRoomId);
                             }, 2000);
                         }
                     }
@@ -762,7 +927,14 @@ io.on("connection", (socket) => {
                 
                 activeRooms.forEach((room, roomId) => { 
                     const u = room.users.find(u => u.socketId === socket.id); 
-                    if (u) { const isGroupRoom = groups.find(g => g.id === roomId); if (!isGroupRoom) { socket.to(roomId).emit("partnerDisconnected"); room.users = room.users.filter(u => u.socketId !== socket.id); if (room.users.length === 0) activeRooms.delete(roomId); } } 
+                    if (u) { 
+                        const isGroupRoom = groups.find(g => g.id === roomId); 
+                        if (!isGroupRoom) { 
+                            socket.to(roomId).emit("partnerDisconnected"); 
+                            room.users = room.users.filter(u => u.socketId !== socket.id); 
+                            if (room.users.length === 0) activeRooms.delete(roomId); 
+                        } 
+                    } 
                 });
                 broadcastAdminUpdate();
                 console.log(`🔌 Disconnected: ${socket.id}`);
@@ -774,71 +946,15 @@ io.on("connection", (socket) => {
     }
 });
 
-function cleanupCallRoom(roomId, socket) { 
-    try {
-        const room = callRooms.get(roomId); 
-        if (room) { callRooms.delete(roomId); socket.leave(roomId); } 
-    } catch (err) { console.error('❌ cleanupCallRoom error:', err.message); }
-}
-
-function getAdminSockets() { 
-    const a = []; 
-    io.sockets.sockets.forEach(s => { if (s.handshake.query.role === 'admin') a.push(s.id); }); 
-    return a; 
-}
-
-function broadcastToAdmins(e, d) { 
-    try {
-        getAdminSockets().forEach(id => io.to(id).emit(e, d)); 
-    } catch (err) { console.error('❌ broadcastToAdmins error:', err.message); }
-}
-
-function updateUser(sid, upd) { 
-    try {
-        const i = allUsers.findIndex(u => u.socketId === sid); 
-        if (i !== -1) allUsers[i] = { ...allUsers[i], ...upd }; 
-    } catch (err) { console.error('❌ updateUser error:', err.message); }
-}
-
-function getActiveChatsList() { 
-    const c = []; 
-    activeRooms.forEach((r, rid) => { if (r.users.length >= 2) c.push({ roomId: rid, user1: r.users[0]?.name || '?', user2: r.users[1]?.name || '?', startedAt: new Date(r.createdAt).toISOString() }); }); 
-    return c; 
-}
-
-function buildAdminData() { 
-    try {
-        return { 
-            users: allUsers.filter(u => (u.status === 'connected' && u.roomId) || u.status === 'waiting' || (Date.now() - new Date(u.lastActive).getTime()) < 60000), 
-            activeChats: getActiveChatsList(), 
-            totalVisitors: uniqueVisitors.size, 
-            totalMatches, 
-            activeNow: allUsers.filter(u => u.status === 'connected' && u.roomId).length, 
-            waitingNow: allUsers.filter(u => u.status === 'waiting').length, 
-            announcement: currentAnnouncement, 
-            groups: groups.map(g => ({ id: g.id, name: g.name, users: g.users.length })), 
-            callRooms: callRooms.size, 
-            callQueue: callQueue.length, 
-            groupCallRooms: groupCallRooms.size, 
-            suspiciousUsers: suspiciousUsers.size, 
-            bannedCount: bannedUsers.size 
-        }; 
-    } catch (err) {
-        console.error('❌ buildAdminData error:', err.message);
-        return {};
-    }
-}
-
-function broadcastAdminUpdate() { 
-    broadcastToAdmins('adminUpdate', buildAdminData()); 
-}
-
 // ============================================
-// ✅ SPA CATCH-ALL - MUST BE LAST
+// ✅ SPA CATCH-ALL - MUST BE LAST (FIXED!)
 // ============================================
 app.get('*', (req, res) => {
-    // Skip API, health, and status routes
-    if (req.path.startsWith('/api') || req.path === '/health' || req.path === '/status' || req.path === '/socket.io') {
+    // Skip API, health, status, and socket.io routes
+    if (req.path.startsWith('/api') || 
+        req.path === '/health' || 
+        req.path === '/status' || 
+        req.path.startsWith('/socket.io')) {
         return res.status(404).json({ error: 'Not found' });
     }
     
@@ -847,57 +963,94 @@ app.get('*', (req, res) => {
         return res.status(404).send('Not found');
     }
     
-    // Serve index.html for all other routes (SPA routing)
     const indexPath = path.join(__dirname, 'dist', 'index.html');
+    
+    // ✅ Try to serve the built frontend
     res.sendFile(indexPath, (err) => {
         if (err) {
-            console.error('❌ Error serving index.html:', err.message);
-            // If file doesn't exist, fallback to JSON
-            res.status(200).json({
-                name: 'CallChat Server',
-                status: 'running',
-                uptime: process.uptime(),
-                note: 'Frontend not built. Run: npm run build'
-            });
+            // If frontend not built, show a helpful message instead of 503
+            console.error('❌ Frontend not found:', err.message);
+            res.status(200).send(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1">
+                    <title>CallChat Server</title>
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body { 
+                            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif; 
+                            background: #0a0a0a; color: #fff; 
+                            display: flex; align-items: center; justify-content: center; 
+                            min-height: 100vh; text-align: center; padding: 20px;
+                        }
+                        .card {
+                            background: #1a1a1a; border: 1px solid #333;
+                            border-radius: 16px; padding: 40px; max-width: 500px;
+                        }
+                        .status { font-size: 64px; margin-bottom: 16px; }
+                        h1 { font-size: 24px; font-weight: 600; margin-bottom: 12px; }
+                        p { color: #a1a1aa; font-size: 14px; margin-bottom: 8px; line-height: 1.6; }
+                        code { background: #333; padding: 4px 8px; border-radius: 6px; font-size: 13px; }
+                        a { color: #84cc16; text-decoration: none; }
+                        a:hover { text-decoration: underline; }
+                        .links { margin-top: 20px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+                        .link-btn { 
+                            background: #333; color: #fff; padding: 8px 16px; 
+                            border-radius: 8px; font-size: 13px; transition: 0.2s;
+                        }
+                        .link-btn:hover { background: #84cc16; color: #0a0a0a; text-decoration: none; }
+                    </style>
+                </head>
+                <body>
+                    <div class="card">
+                        <div class="status">🟢</div>
+                        <h1>CallChat Server is Running</h1>
+                        <p>Frontend build not found.</p>
+                        <p>Run <code>npm run build</code> on your server.</p>
+                        <p>Current path: <code>${indexPath}</code></p>
+                        <div class="links">
+                            <a href="/health" class="link-btn">Health Check</a>
+                            <a href="/status" class="link-btn">Status</a>
+                            <a href="/api" class="link-btn">API Info</a>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `);
         }
     });
 });
 
-// ✅ Better error handling - don't crash the server
+// ============================================
+// ✅ ERROR HANDLERS
+// ============================================
 process.on('uncaughtException', (err) => { 
     console.error('❌ Uncaught Exception:', err.message); 
     console.error('Stack:', err.stack);
-    // Don't exit, just log
 });
 
 process.on('unhandledRejection', (reason, promise) => { 
     console.error('❌ Unhandled Rejection at:', promise); 
     console.error('Reason:', reason);
-    // Don't exit, just log
 });
 
-// ✅ Handle SIGTERM for graceful shutdown (Render sends this)
 process.on('SIGTERM', () => {
     console.log('👋 SIGTERM received. Cleaning up...');
-    
-    // Close all socket connections
     io.sockets.sockets.forEach((socket) => {
         socket.disconnect(true);
     });
-    
     server.close(() => {
         console.log('✅ Server closed gracefully');
         process.exit(0);
     });
-    
-    // Force exit after 5 seconds if graceful shutdown fails
     setTimeout(() => {
         console.error('⚠️ Forced shutdown after timeout');
         process.exit(1);
     }, 5000);
 });
 
-// ✅ Handle SIGINT (Ctrl+C)
 process.on('SIGINT', () => {
     console.log('👋 SIGINT received. Shutting down...');
     server.close(() => {
@@ -906,6 +1059,9 @@ process.on('SIGINT', () => {
     });
 });
 
+// ============================================
+// ✅ START SERVER
+// ============================================
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 CallChat Server running on port ${PORT}`);
@@ -913,5 +1069,6 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`📢 Announcements | 🛡️ Anti-spam | 🚫 Ban system`);
     console.log(`🏥 Health check: http://0.0.0.0:${PORT}/health`);
     console.log(`💾 Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
-    console.log(`📁 Static files: ${path.join(__dirname, 'dist')}`);
+    console.log(`📁 Static files: ${distPath}`);
+    console.log(`📁 Index exists: ${fs.existsSync(indexPath)}`);
 });
