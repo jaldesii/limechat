@@ -10,14 +10,26 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
+
+// ✅ IMPORTANT: Serve static files FIRST before any routes
+// This ensures index.html and assets are served properly
+app.use(express.static(path.join(__dirname, 'dist'), {
+    index: false, // Don't auto-serve index.html for root
+    setHeaders: (res, filePath) => {
+        // Cache static assets
+        if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000');
+        }
+    }
+}));
+
 const server = http.createServer(app);
 const io = new Server(server, { 
     cors: { origin: "*" },
     pingTimeout: 60000,
     pingInterval: 25000,
-    // ✅ Add connection error handling
     connectTimeout: 30000,
-    maxHttpBufferSize: 1e6, // 1MB
+    maxHttpBufferSize: 1e6,
 });
 
 // ✅ Handle engine connection errors
@@ -31,7 +43,7 @@ io.engine.on("connection_error", (err) => {
 });
 
 // ============================================
-// ✅ HEALTH CHECK ENDPOINT
+// ✅ API ENDPOINTS (defined BEFORE catch-all)
 // ============================================
 app.get('/health', (req, res) => {
   res.status(200).json({ 
@@ -47,15 +59,6 @@ app.get('/api', (req, res) => {
     name: 'CallChat API',
     version: '1.0.0',
     status: 'online'
-  });
-});
-
-// ✅ Root endpoint
-app.get('/', (req, res) => {
-  res.status(200).json({
-    name: 'CallChat Server',
-    status: 'running',
-    uptime: process.uptime()
   });
 });
 
@@ -150,7 +153,7 @@ app.get("/status", (req, res) => {
             suspiciousUsers: suspiciousUsers.size,
             bannedCount: bannedUsers.size,
             uptime: process.uptime(),
-            memory: process.memoryUsage().heapUsed / 1024 / 1024
+            memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
         });
     } catch (err) {
         console.error('❌ Status error:', err.message);
@@ -831,16 +834,34 @@ function broadcastAdminUpdate() {
 }
 
 // ============================================
-// ✅ PRODUCTION - SPA Fallback
+// ✅ SPA CATCH-ALL - MUST BE LAST
 // ============================================
-if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, 'dist')));
-    app.get('*', (req, res) => {
-        if (req.path.startsWith('/api') || req.path === '/health' || req.path === '/status') return res.status(404).json({ error: 'Not found' });
-        if (req.path.includes('.')) return res.status(404).send('Not found');
-        res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+app.get('*', (req, res) => {
+    // Skip API, health, and status routes
+    if (req.path.startsWith('/api') || req.path === '/health' || req.path === '/status' || req.path === '/socket.io') {
+        return res.status(404).json({ error: 'Not found' });
+    }
+    
+    // Skip static file requests with extensions
+    if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|wasm|map|json|txt|xml)$/)) {
+        return res.status(404).send('Not found');
+    }
+    
+    // Serve index.html for all other routes (SPA routing)
+    const indexPath = path.join(__dirname, 'dist', 'index.html');
+    res.sendFile(indexPath, (err) => {
+        if (err) {
+            console.error('❌ Error serving index.html:', err.message);
+            // If file doesn't exist, fallback to JSON
+            res.status(200).json({
+                name: 'CallChat Server',
+                status: 'running',
+                uptime: process.uptime(),
+                note: 'Frontend not built. Run: npm run build'
+            });
+        }
     });
-}
+});
 
 // ✅ Better error handling - don't crash the server
 process.on('uncaughtException', (err) => { 
@@ -892,4 +913,5 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`📢 Announcements | 🛡️ Anti-spam | 🚫 Ban system`);
     console.log(`🏥 Health check: http://0.0.0.0:${PORT}/health`);
     console.log(`💾 Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
+    console.log(`📁 Static files: ${path.join(__dirname, 'dist')}`);
 });
